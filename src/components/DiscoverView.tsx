@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArtworkImage } from './ArtworkImage';
-import { Clock, Play, Search, Trash2, X, Youtube } from 'lucide-react';
+import { Clock, Play, Search, Trash2, X } from 'lucide-react';
 import type {
   Album,
   Artist,
@@ -11,7 +11,7 @@ import type {
   TabIndicatorStyle,
   Track,
 } from '../types/music';
-import type { YouTubeVideo } from '../utils/youtubeApi';
+
 import { filterTracksByQueryAndCategory, formatDuration } from '../utils/zunoLogic';
 import { FlowingTabs } from './fluid/FlowingTabs';
 import { DownloadActionButton } from './fluid/DownloadActionButton';
@@ -25,11 +25,6 @@ interface DiscoverViewProps {
   downloads: DownloadItem[];
   remoteLoading: boolean;
   remoteError: string | null;
-  youtubeVideos: YouTubeVideo[];
-  youtubeLoading: boolean;
-  youtubeError: string | null;
-  youtubeNeedsSubmit: boolean;
-  onOpenYouTube: (video: YouTubeVideo) => void;
   favoriteIds: string[];
   query: string;
   onQueryChange: (q: string) => void;
@@ -69,11 +64,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   downloads,
   remoteLoading,
   remoteError,
-  youtubeVideos,
-  youtubeLoading,
-  youtubeError,
-  youtubeNeedsSubmit,
-  onOpenYouTube,
   favoriteIds,
   query,
   onQueryChange,
@@ -180,7 +170,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           aria-live="polite"
           className={`rounded-xl border px-3.5 py-3 text-xs ${darkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-white'}`}
         >
-          {remoteLoading ? 'Audius müzik kataloğu aranıyor…' : `Çevrimiçi müzik kaynağı: ${remoteError}`}
+          {remoteLoading ? 'Canlı müzik katalogları aranıyor…' : `Çevrimiçi müzik kaynağı: ${remoteError}`}
         </div>
       )}
 
@@ -324,48 +314,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                   </div>
                 );
               })}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* YouTube video search uses YouTube's official embeddable player. */}
-      {(category === 'all' || category === 'songs' || category === 'videos') && query.trim().length >= 2 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="inline-flex items-center gap-2 font-display text-base font-semibold tracking-tight opacity-90">
-              <Youtube className="h-4 w-4 text-red-500" /> YouTube sonuçları
-            </h2>
-            <span className="text-[11px] opacity-50">Resmî video oynatma</span>
-          </div>
-          {youtubeNeedsSubmit ? (
-            <div className="rounded-2xl border border-current/10 px-4 py-6 text-center text-sm opacity-60">YouTube'da aramak için Ara düğmesine dokun.</div>
-          ) : youtubeLoading ? (
-            <div className="rounded-2xl border border-current/10 px-4 py-6 text-center text-sm opacity-60" role="status">YouTube aranıyor…</div>
-          ) : youtubeError ? (
-            <div className="rounded-2xl border border-dashed border-current/15 px-4 py-5 text-sm opacity-75" role="alert">{youtubeError}</div>
-          ) : youtubeVideos.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-current/15 px-4 py-6 text-center text-sm opacity-60">Bu arama için gömülebilir YouTube videosu bulunamadı.</div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {youtubeVideos.map((video) => (
-                <button
-                  key={video.videoId}
-                  type="button"
-                  onClick={() => onOpenYouTube(video)}
-                  className={`group overflow-hidden rounded-2xl border text-left transition-transform active:scale-[0.99] ${darkMode ? 'border-white/[0.08] bg-[#11151e] hover:bg-[#171d29]' : 'border-slate-200 bg-white hover:bg-slate-50 shadow-sm'}`}
-                >
-                  <div className="relative aspect-video overflow-hidden bg-black">
-                    <ArtworkImage src={video.thumbnailUrl} alt={video.title} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
-                    <span className="absolute bottom-2 right-2 rounded-md bg-black/85 px-2 py-1 text-[10px] font-semibold text-white">YouTube</span>
-                    <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white shadow-xl"><Play className="h-5 w-5 fill-current ml-0.5" /></span></span>
-                  </div>
-                  <div className="space-y-1 p-3">
-                    <div className="line-clamp-2 text-sm font-semibold leading-snug">{video.title}</div>
-                    <div className="truncate text-xs opacity-60">{video.channelTitle}{video.durationSec > 0 ? ` · ${formatDuration(video.durationSec)}` : ''}</div>
-                  </div>
-                </button>
-              ))}
             </div>
           )}
         </section>
