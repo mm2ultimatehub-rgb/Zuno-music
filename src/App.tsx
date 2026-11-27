@@ -57,6 +57,19 @@ import type { RealtimeChannel, User } from '@supabase/supabase-js';
 
 const STORAGE_KEY = 'zuno-music-state-v1';
 
+function mergeCatalogItems<T extends { id: string }>(
+  incoming: T[],
+  previous: T[],
+  limit = 200,
+): T[] {
+  const merged = new Map<string, T>();
+  incoming.forEach((item) => merged.set(item.id, item));
+  previous.forEach((item) => {
+    if (!merged.has(item.id)) merged.set(item.id, item);
+  });
+  return [...merged.values()].slice(0, limit);
+}
+
 const EMPTY_TRACK: Track = {
   id: '',
   title: 'Henüz parça seçilmedi',
@@ -533,12 +546,12 @@ export default function App() {
     void searchYouTubeMusic('popular songs', { signal: controller.signal })
       .then((results) => {
         if (controller.signal.aborted) return;
-        setYoutubeMusicTracks(results.tracks);
-        setYoutubeMusicAlbums(results.albums.map((album) => ({
+        setYoutubeMusicTracks((previous) => mergeCatalogItems(results.tracks, previous));
+        setYoutubeMusicAlbums((previous) => mergeCatalogItems(results.albums.map((album) => ({
           ...album,
           trackIds: results.tracks.filter((track) => track.albumId === album.id).map((track) => track.id),
-        })));
-        setYoutubeMusicArtists(results.artists);
+        })), previous));
+        setYoutubeMusicArtists((previous) => mergeCatalogItems(results.artists, previous));
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -562,19 +575,16 @@ export default function App() {
       void searchYouTubeMusic(query, { signal: controller.signal })
         .then((results) => {
           if (controller.signal.aborted) return;
-          setYoutubeMusicTracks(results.tracks);
+          setYoutubeMusicTracks((previous) => mergeCatalogItems(results.tracks, previous));
           const albumsWithTracks = results.albums.map((album) => ({
             ...album,
             trackIds: results.tracks.filter((track) => track.albumId === album.id).map((track) => track.id),
           }));
-          setYoutubeMusicAlbums(albumsWithTracks);
-          setYoutubeMusicArtists(results.artists);
+          setYoutubeMusicAlbums((previous) => mergeCatalogItems(albumsWithTracks, previous));
+          setYoutubeMusicArtists((previous) => mergeCatalogItems(results.artists, previous));
         })
         .catch((error: unknown) => {
           if (controller.signal.aborted) return;
-          setYoutubeMusicTracks([]);
-          setYoutubeMusicAlbums([]);
-          setYoutubeMusicArtists([]);
           setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music araması başarısız oldu.');
         })
         .finally(() => {
