@@ -273,14 +273,15 @@ export default function App() {
 
   // Restore the Supabase session on every platform and keep it updated after login/logout.
   useEffect(() => {
-    if (!supabase) {
+    const authClient = supabase;
+    if (!authClient) {
       setAuthReady(true);
       setCloudSyncStatus('disabled');
       return;
     }
 
     let active = true;
-    void supabase.auth.getSession().then(({ data, error }) => {
+    void authClient.auth.getSession().then(({ data, error }) => {
       if (!active) return;
       if (error) setCloudSyncStatus('error');
       setAuthUser(data.session?.user || null);
@@ -291,7 +292,7 @@ export default function App() {
       setAuthReady(true);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = authClient.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user || null);
       setAuthReady(true);
     });
@@ -305,7 +306,8 @@ export default function App() {
   // Load a user's cloud library before enabling automatic writes, then listen for other devices.
   useEffect(() => {
     if (!authReady) return;
-    if (!supabase || !authUser) {
+    const client = supabase;
+    if (!client || !authUser) {
       setCloudReadyUserId(null);
       setCloudSyncStatus(isSupabaseConfigured ? 'signed-out' : 'disabled');
       return;
@@ -319,7 +321,7 @@ export default function App() {
 
     const restoreCloudState = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('zuno_user_state')
           .select('state')
           .eq('user_id', userId)
@@ -338,7 +340,7 @@ export default function App() {
         } else {
           // First sign-in: seed this account with the library already on this device.
           const firstState = cloudStateRef.current;
-          const { error: insertError } = await supabase.from('zuno_user_state').upsert({
+          const { error: insertError } = await client.from('zuno_user_state').upsert({
             user_id: userId,
             state: firstState,
             updated_at: new Date().toISOString(),
@@ -351,7 +353,7 @@ export default function App() {
         setCloudReadyUserId(userId);
         setCloudSyncStatus('synced');
 
-        channel = supabase
+        channel = client
           .channel('zuno-user-state-' + userId)
           .on(
             'postgres_changes',
@@ -395,33 +397,40 @@ export default function App() {
     void restoreCloudState();
     return () => {
       cancelled = true;
-      if (channel && supabase) void supabase.removeChannel(channel);
+      if (channel) void client.removeChannel(channel);
     };
   }, [authReady, authUser?.id, showToast]);
 
   // Debounced cloud writes keep settings and library changes synchronized across devices.
   useEffect(() => {
-    if (!supabase || !authUser || cloudReadyUserId !== authUser.id) return;
+    const client = supabase;
+    if (!client || !authUser || cloudReadyUserId !== authUser.id) return;
+    const userId = authUser.id;
     const serialized = JSON.stringify(cloudState);
     if (serialized === lastCloudStateJsonRef.current) return;
 
     const timer = window.setTimeout(() => {
       setCloudSyncStatus('syncing');
-      void supabase.from('zuno_user_state').upsert({
-        user_id: authUser.id,
-        state: cloudState,
-        updated_at: new Date().toISOString(),
-      }).then(({ error }) => {
-        if (error) {
+      void (async () => {
+        try {
+          const { error } = await client.from('zuno_user_state').upsert({
+            user_id: userId,
+            state: cloudState,
+            updated_at: new Date().toISOString(),
+          });
+          if (error) {
+            setCloudSyncStatus('error');
+            return;
+          }
+          // Do not mark an older in-flight save as current if another device changed the state meanwhile.
+          if (JSON.stringify(cloudStateRef.current) === serialized) {
+            lastCloudStateJsonRef.current = serialized;
+            setCloudSyncStatus('synced');
+          }
+        } catch {
           setCloudSyncStatus('error');
-          return;
         }
-        // Do not mark an older in-flight save as current if another device changed the state meanwhile.
-        if (JSON.stringify(cloudStateRef.current) === serialized) {
-          lastCloudStateJsonRef.current = serialized;
-          setCloudSyncStatus('synced');
-        }
-      }).catch(() => setCloudSyncStatus('error'));
+      })();
     }, 900);
 
     return () => window.clearTimeout(timer);
