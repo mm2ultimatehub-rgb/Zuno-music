@@ -27,6 +27,7 @@ interface DiscoverViewProps {
   youtubeVideos: YouTubeVideo[];
   youtubeLoading: boolean;
   youtubeError: string | null;
+  youtubeNeedsSubmit: boolean;
   onOpenYouTube: (video: YouTubeVideo) => void;
   favoriteIds: string[];
   query: string;
@@ -70,6 +71,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   youtubeVideos,
   youtubeLoading,
   youtubeError,
+  youtubeNeedsSubmit,
   onOpenYouTube,
   favoriteIds,
   query,
@@ -159,6 +161,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               <X className="h-4 w-4" />
             </button>
           )}
+          <button
+            type="submit"
+            className="h-9 shrink-0 rounded-full px-4 text-xs font-semibold transition-transform active:scale-95"
+            style={{ backgroundColor: accentColor, color: '#0b0e16' }}
+          >
+            Ara
+          </button>
         </div>
       </form>
 
@@ -326,7 +335,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             </h2>
             <span className="text-[11px] opacity-50">Resmî video oynatma</span>
           </div>
-          {youtubeLoading ? (
+          {youtubeNeedsSubmit ? (
+            <div className="rounded-2xl border border-current/10 px-4 py-6 text-center text-sm opacity-60">YouTube'da aramak için Ara düğmesine dokun.</div>
+          ) : youtubeLoading ? (
             <div className="rounded-2xl border border-current/10 px-4 py-6 text-center text-sm opacity-60" role="status">YouTube aranıyor…</div>
           ) : youtubeError ? (
             <div className="rounded-2xl border border-dashed border-current/15 px-4 py-5 text-sm opacity-75" role="alert">{youtubeError}</div>
