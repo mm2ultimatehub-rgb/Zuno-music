@@ -95,7 +95,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   darkMode,
 }) => {
   const qLower = query.trim().toLocaleLowerCase('tr-TR');
-  const playableTracks = tracks.filter((track) => Boolean(track.audioUrl || track.audioObjectUrl));
+  const playableTracks = tracks.filter((track) => Boolean(
+    track.audioUrl || track.audioObjectUrl || track.provider === 'youtube-music'
+  ));
   const filteredTracks = filterTracksByQueryAndCategory(playableTracks, query, category);
   const filteredAlbums = albums.filter(
     (a) =>
@@ -286,7 +288,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     </button>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      {track.provider === 'audius' && !track.downloadable ? (
+                      {track.provider === 'youtube-music' ? (
+                        <span className="px-2 text-[10px] font-medium opacity-50" title="YouTube Music resmî oynatıcı ile açılır">
+                          YouTube oynatıcı
+                        </span>
+                      ) : track.provider === 'audius' && !track.downloadable ? (
                         <span className="px-2 text-[10px] font-medium opacity-50" title="Sanatçı indirmeye izin vermiyor">
                           İndirme kapalı
                         </span>
