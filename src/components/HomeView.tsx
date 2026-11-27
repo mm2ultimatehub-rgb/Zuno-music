@@ -15,6 +15,8 @@ interface HomeViewProps {
   onOpenDiscover: () => void;
   accentColor: string;
   darkMode: boolean;
+  catalogLoading?: boolean;
+  catalogError?: string | null;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -28,6 +30,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenDiscover,
   accentColor,
   darkMode,
+  catalogLoading = false,
+  catalogError = null,
 }) => {
   const playableTracks = tracks.filter((track) => Boolean(
     track.audioUrl || track.audioObjectUrl || track.provider === 'youtube-music'
@@ -215,9 +219,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {playableTracks.length === 0 && (
         <section className={`rounded-3xl border border-dashed px-5 py-8 text-center ${darkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white'}`}>
-          <h2 className="font-display text-base font-semibold">Henüz parça yüklenmedi</h2>
+          <h2 className="font-display text-base font-semibold">
+            {catalogLoading ? 'YouTube Music kataloğu yükleniyor' : catalogError ? 'Müzik kataloğuna ulaşılamadı' : 'Henüz parça yüklenmedi'}
+          </h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed opacity-65">
-            Çevrimiçi kataloğu Keşfet bölümünden ara veya Kütüphane üzerinden cihazındaki MP3, FLAC ve diğer ses dosyalarını ekle.
+            {catalogError || 'YouTube Music üzerinden gerçek şarkıları keşfet veya Kütüphane üzerinden cihazındaki ses dosyalarını ekle.'}
           </p>
           <button type="button" onClick={onOpenDiscover} className="mt-4 rounded-full px-4 py-2 text-sm font-semibold" style={{ backgroundColor: accentColor, color: '#0b0e16' }}>
             Müzik keşfet
