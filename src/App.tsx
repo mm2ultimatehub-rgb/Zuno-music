@@ -1298,7 +1298,7 @@ export default function App() {
                     [trimmed, ...prev.filter((item) => item !== trimmed)].slice(0, 8)
                   );
                   setYoutubeSearchQuery(
-                    searchCategory === 'all' || searchCategory === 'videos' ? trimmed : ''
+                    searchCategory === 'all' || searchCategory === 'songs' || searchCategory === 'videos' ? trimmed : ''
                   );
                 }}
                 onClearHistory={() => setSearchHistory([])}
