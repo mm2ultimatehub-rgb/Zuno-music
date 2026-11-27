@@ -53,7 +53,12 @@ npm run desktop:build
 
 GitHub Actions, dal/PR değişikliklerinde test amaçlı **debug APK** ve Linux/Windows/macOS masaüstü paketleri üretir. Debug APK mevcut imzalı bir sürümün üzerine güncelleme olarak kurulamaz.
 
-Gerçek, mevcut kurulumun üzerine yüklenebilir Android Release APK ve GitHub Release üretmek için `v0.1.0` biçiminde bir Git tag gönder. Önce Repository → Settings → Secrets and variables → Actions bölümüne aşağıdaki repository secrets değerlerini ekle:
+Gerçek, mevcut kurulumun üzerine yüklenebilir Android Release APK ve GitHub Release üretmek için iki yol vardır:
+
+1. `v0.1.1` gibi bir Git tag gönder; veya
+2. GitHub'da **Actions → ZUNO native app builds → Run workflow** yolunu aç ve `release_version` alanına `0.1.1` gibi bir sürüm yaz. Alanı boş bırakırsan yalnızca test amaçlı debug APK üretilir. Sürüm numarası yazılırsa workflow, tüm platform paketleri başarılı olduktan sonra `v0.1.1` etiketini ve GitHub Release'i oluşturur.
+
+Önce Repository → Settings → Secrets and variables → Actions bölümüne aşağıdaki repository secrets değerlerini ekle:
 
 - `ZUNO_KEYSTORE_BASE64`: release keystore dosyasının Base64 içeriği
 - `ZUNO_KEYSTORE_PASSWORD`
@@ -62,7 +67,7 @@ Gerçek, mevcut kurulumun üzerine yüklenebilir Android Release APK ve GitHub R
 
 Aynı keystore ve alias sonraki tüm sürümlerde kullanılmalıdır. İmzalama anahtarını repoya veya uygulama kaynak koduna ekleme. Tag workflow'u bu değerlerden biri eksikse release'i durdurur; imzasız APK'yı güncelleme gibi yayımlamaz.
 
-Her başarılı `v*` tag yayını GitHub Releases'e Android APK ve üretilen masaüstü kurulumlarını ekler. Ayarlar ekranı artık sabit bir başarı mesajı göstermez; gerçek en son kararlı GitHub Release sürümünü denetler.
+Her başarılı tag veya sürüm numarasıyla başlatılan manuel release GitHub Releases'e imzalı Android APK ve üretilen masaüstü kurulumlarını ekler. Ayarlar ekranı artık sabit bir başarı mesajı göstermez; gerçek en son kararlı GitHub Release sürümünü denetler.
 
 ## Kimlik doğrulama yönlendirmesi
 
