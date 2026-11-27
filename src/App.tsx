@@ -974,9 +974,22 @@ export default function App() {
                   const track = item && allTracks.find((candidate) => candidate.id === item.trackId);
                   if (track) void handleDownloadTrack(track);
                 }}
-                onCancel={(dlId) => {
+                onCancel={async (dlId) => {
                   downloadControllersRef.current.get(dlId)?.abort();
-                  setDownloads((previous) => previous.filter((item) => item.id !== dlId));
+                  const item = downloads.find((download) => download.id === dlId);
+                  const cachedTrack = item && allTracks.find((track) => track.id === item.trackId);
+                  if (cachedTrack?.audioFileId && !cachedTrack.isLocal) {
+                    try {
+                      await deleteAudioFile(cachedTrack.audioFileId);
+                      if (cachedTrack.audioObjectUrl) URL.revokeObjectURL(cachedTrack.audioObjectUrl);
+                      setOfflineCatalogTracks((previous) => previous.filter((track) => track.id !== cachedTrack.id));
+                    } catch (error) {
+                      showToast(error instanceof Error ? error.message : 'Çevrimdışı dosya silinemedi.');
+                      return;
+                    }
+                  }
+                  setDownloads((previous) => previous.filter((download) => download.id !== dlId));
+                  showToast('İndirme kaydı kaldırıldı');
                 }}
                 onPlayTrack={(tr) => handlePlayTrack(tr)}
                 accentColor={settings.accentColor}
