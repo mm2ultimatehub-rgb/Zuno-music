@@ -60,9 +60,9 @@ function isTauriRuntime(): boolean {
     && Object.prototype.hasOwnProperty.call(window, '__TAURI_INTERNALS__');
 }
 
-function normalizeInput(input: RequestInfo | URL): { url: string; headers: Headers; method: string; body?: BodyInit | null } {
+function normalizeInput(input: RequestInfo | URL): { url: string; headers: Headers; method: string; request?: Request } {
   if (input instanceof Request) {
-    return { url: input.url, headers: new Headers(input.headers), method: input.method, body: input.body };
+    return { url: input.url, headers: new Headers(input.headers), method: input.method, request: input };
   }
   return {
     url: input instanceof URL ? input.toString() : input,
@@ -78,6 +78,9 @@ async function bodyToText(body: BodyInit | null | undefined): Promise<string | u
   if (body instanceof ArrayBuffer) return new TextDecoder().decode(body);
   if (ArrayBuffer.isView(body)) return new TextDecoder().decode(body as ArrayBufferView);
   if (body instanceof Blob) return await body.text();
+  if (typeof ReadableStream !== 'undefined' && body instanceof ReadableStream) {
+    return await new Response(body).text();
+  }
   throw new YouTubeMusicError('YouTube Music sent an unsupported request body.');
 }
 
@@ -86,7 +89,11 @@ async function youtubeMusicFetch(input: RequestInfo | URL, init?: RequestInit): 
   const headers = new Headers(request.headers);
   if (init?.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value));
   const method = (init?.method || request.method || 'GET').toUpperCase();
-  const body = await bodyToText(init?.body ?? request.body);
+  const body = init?.body !== undefined
+    ? await bodyToText(init.body)
+    : request.request
+      ? await request.request.clone().text()
+      : undefined;
   const headerRecord: Record<string, string> = {};
   headers.forEach((value, key) => { headerRecord[key] = value; });
 
