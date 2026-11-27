@@ -33,9 +33,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     .map((id) => playableTracks.find((track) => track.id === id))
     .filter((track): track is Track => Boolean(track));
 
-  const personalizedTracks = playableTracks.slice(0, 6);
-  const popularTracks = playableTracks.slice(0, 5);
-  const discoveryTracks = playableTracks.filter((track) => track.category !== 'podcasts').slice(5, 11);
 
   const surfaceCls = darkMode
     ? 'bg-[#11151e] hover:bg-[#171d29] border-white/[0.06]'
@@ -143,7 +140,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               Müziğin seni bekliyor
             </h1>
             <p className="text-sm opacity-75 leading-relaxed">
-              Son kaldığın tınıdan devam et ya da dinamik gece seçkileriyle yeni parçalar keşfet.
+              Canlı müzik kataloğunda gerçek parçaları keşfet veya cihazındaki ses dosyalarını kütüphanene ekle.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
@@ -205,60 +202,53 @@ export const HomeView: React.FC<HomeViewProps> = ({
           recentTracks.map((t) => t.id)
         )}
 
-      {/* Sana özel öneriler */}
+      {/* Real tracks returned by the active music provider */}
       {renderCarouselSection(
-        'Sana özel öneriler',
-        personalizedTracks,
-        personalizedTracks.map((t) => t.id),
+        'Canlı katalogdan parçalar',
+        playableTracks.slice(0, 12),
+        playableTracks.slice(0, 12).map((track) => track.id),
         onOpenDiscover
       )}
 
-      {/* Popüler parçalar */}
-      {renderCarouselSection(
-        'Popüler parçalar',
-        popularTracks,
-        popularTracks.map((t) => t.id)
+      {playableTracks.length === 0 && (
+        <section className={`rounded-3xl border border-dashed px-5 py-8 text-center ${darkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white'}`}>
+          <h2 className="font-display text-base font-semibold">Henüz parça yüklenmedi</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed opacity-65">
+            Çevrimiçi kataloğu Keşfet bölümünden ara veya Kütüphane üzerinden cihazındaki MP3, FLAC ve diğer ses dosyalarını ekle.
+          </p>
+          <button type="button" onClick={onOpenDiscover} className="mt-4 rounded-full px-4 py-2 text-sm font-semibold" style={{ backgroundColor: accentColor, color: '#0b0e16' }}>
+            Müzik keşfet
+          </button>
+        </section>
       )}
 
-      {/* Yeni keşifler */}
-      {renderCarouselSection(
-        'Yeni keşifler',
-        discoveryTracks,
-        discoveryTracks.map((t) => t.id),
-        onOpenDiscover
+      {/* Only show real album groups returned with catalogue metadata. */}
+      {albums.length > 0 && (
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight">Albüm koleksiyonu</h2>
+          </div>
+          <div className="flex gap-3.5 overflow-x-auto pb-2 no-scrollbar snap-x snap-mandatory">
+            {albums.map((album) => (
+              <button
+                key={album.id}
+                type="button"
+                onClick={() => onOpenAlbum(album)}
+                className={`group snap-start flex w-[156px] sm:w-[176px] shrink-0 flex-col rounded-2xl border p-2.5 text-left transition-all active:scale-[0.98] ${surfaceCls}`}
+              >
+                <div className="mb-2.5 aspect-square w-full overflow-hidden rounded-xl bg-slate-900">
+                  <img src={album.coverUrl} alt={`${album.title} albümü`} referrerPolicy="no-referrer" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                </div>
+                <span className="truncate text-sm font-semibold">{album.title}</span>
+                <span className="mt-0.5 truncate text-xs opacity-65">
+                  {album.artist}{album.year ? ` · ${album.year}` : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* Son açılan albümler */}
-      <section className="space-y-3.5">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight">
-            Son açılan albümler
-          </h2>
-        </div>
-        <div className="flex gap-3.5 overflow-x-auto pb-2 no-scrollbar snap-x snap-mandatory">
-          {albums.map((album) => (
-            <button
-              key={album.id}
-              type="button"
-              onClick={() => onOpenAlbum(album)}
-              className={`group snap-start flex w-[156px] sm:w-[176px] shrink-0 flex-col rounded-2xl border p-2.5 text-left transition-all active:scale-[0.98] ${surfaceCls}`}
-            >
-              <div className="mb-2.5 aspect-square w-full overflow-hidden rounded-xl bg-slate-900">
-                <img
-                  src={album.coverUrl}
-                  alt={`${album.title} albümü`}
-                  referrerPolicy="no-referrer"
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              </div>
-              <span className="truncate text-sm font-semibold">{album.title}</span>
-              <span className="mt-0.5 truncate text-xs opacity-65">
-                {album.artist} · {album.year}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
     </div>
   );
 };

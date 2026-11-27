@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ChevronDown,
   Gauge,
@@ -21,26 +21,11 @@ import type { DownloadItem, FluidShapeId, RepeatMode, Track } from '../types/mus
 import {
   clamp,
   formatDuration,
-  getSyncedLyricIndex,
   resolveMiniPlayerSwipe,
-  type LyricLine,
 } from '../utils/zunoLogic';
 import { LiquidSlider } from './fluid/LiquidSlider';
 import { DownloadActionButton } from './fluid/DownloadActionButton';
 import { MorphingLoader } from './fluid/MorphingLoader';
-
-function buildLyricsForTrack(track: Track): LyricLine[] {
-  const step = Math.max(12, Math.floor(track.durationSec / 7));
-  return [
-    { timeSec: 0, text: `${track.title} — ${track.artist}` },
-    { timeSec: step, text: 'Şehrin ışıkları camlarda kırılırken' },
-    { timeSec: step * 2, text: 'Derin bir frekans geceye karışır' },
-    { timeSec: step * 3, text: `${track.album} yankılanır sessizlikte` },
-    { timeSec: step * 4, text: 'Zaman yavaşlar, ritim kalbe dokunur' },
-    { timeSec: step * 5, text: 'Her dalga yeni bir ufka taşır bizi' },
-    { timeSec: step * 6, text: 'Gece bitene kadar bu akış bizimle' },
-  ];
-}
 
 interface MiniPlayerProps {
   track: Track;
@@ -382,10 +367,7 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({
   const [centerMode, setCenterMode] = useState<'cover' | 'lyrics' | 'queue'>('cover');
   const [showSleepMenu, setShowSleepMenu] = useState(false);
 
-  const lyrics = useMemo(() => buildLyricsForTrack(track), [track]);
-  const activeLyricIdx = getSyncedLyricIndex(lyrics, currentTimeSec);
-
-  const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>({
+const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>({
     active: false,
     startX: 0,
     lastX: 0,
@@ -575,30 +557,14 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({
             </div>
           </div>
         ) : centerMode === 'lyrics' ? (
-          <div className="my-4 flex-1 overflow-y-auto rounded-3xl border border-white/10 bg-black/35 p-5 backdrop-blur-xl max-h-[380px] space-y-3">
-            {lyrics.map((line, i) => {
-              const isCurrentLine = i === activeLyricIdx;
-              return (
-                <button
-                  key={`${line.timeSec}-${i}`}
-                  type="button"
-                  onClick={() => {
-                    if (track.durationSec > 0) {
-                      onSeekRatio(line.timeSec / track.durationSec);
-                    }
-                  }}
-                  className={`block w-full text-left font-display transition-all duration-300 ${
-                    isCurrentLine
-                      ? 'text-xl sm:text-2xl font-bold'
-                      : 'text-base sm:text-lg text-white/45 hover:text-white/75'
-                  }`}
-                  style={isCurrentLine ? { color: activeAccent } : undefined}
-                >
-                  {line.text}
-                </button>
-              );
-            })}
+          <div className="my-4 flex flex-1 flex-col items-center justify-center rounded-3xl border border-white/10 bg-black/35 p-7 text-center backdrop-blur-xl">
+            <Mic2 className="mb-3 h-8 w-8 text-white/35" />
+            <h2 className="font-display text-base font-semibold">Şarkı sözleri bulunamadı</h2>
+            <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/55">
+              Bu parça için doğrulanmış söz bilgisi mevcut değil. ZUNO, yanlış veya uydurma söz göstermeyecek.
+            </p>
           </div>
+
         ) : (
           <div className="my-4 flex-1 overflow-y-auto rounded-3xl border border-white/10 bg-black/35 p-4 backdrop-blur-xl max-h-[380px]">
             <div className="flex items-center justify-between mb-3">

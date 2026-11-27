@@ -29,13 +29,12 @@ import {
   COVER_PRISM,
   COVER_SUBZERO,
   DEFAULT_SETTINGS,
-  ZUNO_ALBUMS,
-  ZUNO_TRACKS,
 } from './data/zunoCatalog';
 import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
 import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
 import { getTrendingAudiusTracks, searchAudiusTracks } from './utils/audiusApi';
+import { searchYouTubeVideos, type YouTubeVideo } from './utils/youtubeApi';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -49,11 +48,29 @@ import { SettingsView } from './components/SettingsView';
 import { AlbumModal } from './components/AlbumModal';
 import { PwaInstallButton } from './components/PwaInstallButton';
 import { AccountModal } from './components/AccountModal';
+import { YouTubePlayerModal } from './components/YouTubePlayerModal';
+import { DynamicIslandPlayer } from './components/DynamicIslandPlayer';
 import { buildZunoCloudState, normalizeZunoCloudState, type CloudSyncStatus } from './utils/cloudSync';
 import { isSupabaseConfigured, supabase } from './utils/supabaseClient';
 import type { RealtimeChannel, User } from '@supabase/supabase-js';
 
 const STORAGE_KEY = 'zuno-music-state-v1';
+
+const EMPTY_TRACK: Track = {
+  id: '',
+  title: 'Henüz parça seçilmedi',
+  artist: 'ZUNO Music',
+  album: 'Müzik keşfet veya dosya ekle',
+  albumId: '',
+  durationSec: 0,
+  coverUrl: '/zuno-icon.svg',
+  category: 'songs',
+  accentColor: '#9b72ff',
+  ambientColor: '#11151e',
+  bpm: 0,
+  rootNoteHz: 0,
+  fileSizeMb: 0,
+};
 
 interface PersistedState {
   settings: ZunoSettings;
@@ -72,13 +89,13 @@ function loadInitialState(): PersistedState {
       return {
         settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
         favorites: Array.isArray(parsed.favorites)
-          ? parsed.favorites.filter((id) => !/^tr-\\d+$/.test(id))
+          ? parsed.favorites.filter((id) => !/^tr-\d+$/.test(id))
           : [],
         recentIds: Array.isArray(parsed.recentIds)
-          ? parsed.recentIds.filter((id) => !/^tr-\\d+$/.test(id))
+          ? parsed.recentIds.filter((id) => !/^tr-\d+$/.test(id))
           : [],
         playlists: Array.isArray(parsed.playlists)
-          ? parsed.playlists.filter((playlist) => playlist.isUserCreated || playlist.trackIds.some((id) => !/^tr-\\d+$/.test(id)))
+          ? parsed.playlists.filter((playlist) => playlist.isUserCreated || playlist.trackIds.some((id) => !/^tr-\d+$/.test(id)))
           : [],
         // Older releases stored simulated download progress; rebuild this list from real IndexedDB files.
         downloads: [],
@@ -118,15 +135,18 @@ export default function App() {
   const [remoteTracks, setRemoteTracks] = useState<Track[]>([]);
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [audiusError, setAudiusError] = useState<string | null>(null);
+  const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
+  const [youtubeSearchQuery, setYoutubeSearchQuery] = useState('');
+  const [youtubeLoading, setYoutubeLoading] = useState(false);
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
+  const [selectedYoutubeVideo, setSelectedYoutubeVideo] = useState<YouTubeVideo | null>(null);
   const allTracks = useMemo(() => {
     const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
     const onlineIds = new Set(remoteTracks.map((track) => track.id));
-    const localCatalogIds = new Set(ZUNO_TRACKS.map((track) => track.id));
     return [
       ...remoteTracks.map((track) => offlineById.get(track.id) || track),
-      ...ZUNO_TRACKS.map((track) => offlineById.get(track.id) || track),
       ...localTracks,
-      ...offlineCatalogTracks.filter((track) => !onlineIds.has(track.id) && !localCatalogIds.has(track.id)),
+      ...offlineCatalogTracks.filter((track) => !onlineIds.has(track.id)),
     ];
   }, [localTracks, offlineCatalogTracks, remoteTracks]);
   const downloadControllersRef = useRef<Map<string, AbortController>>(new Map());
@@ -151,9 +171,9 @@ export default function App() {
 
   // Playback State
   const [queue, setQueue] = useState<string[]>([]);
-  const [activeTrackId, setActiveTrackId] = useState<string>(ZUNO_TRACKS[0].id);
+  const [activeTrackId, setActiveTrackId] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTimeSec, setCurrentTimeSec] = useState(34);
+  const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>('all');
   const [playbackRate, setPlaybackRate] = useState<number>(1.0);
@@ -162,7 +182,7 @@ export default function App() {
   const [cacheMb, setCacheMb] = useState(0);
 
   const activeTrack = useMemo(
-    () => allTracks.find((track) => track.id === activeTrackId) || allTracks.find((track) => track.audioObjectUrl || track.audioUrl) || allTracks[0],
+    () => allTracks.find((track) => track.id === activeTrackId) || EMPTY_TRACK,
     [allTracks, activeTrackId]
   );
 
@@ -185,32 +205,31 @@ export default function App() {
   }, [allTracks]);
 
   const libraryAlbums = useMemo(() => {
-    const playableIds = new Set(allTracks.filter((track) => track.audioObjectUrl || track.audioUrl).map((track) => track.id));
-    const availableCatalogAlbums = ZUNO_ALBUMS.filter((album) => album.trackIds.some((id) => playableIds.has(id)));
-    const importedTracks = allTracks.filter((track) => track.isLocal && playableIds.has(track.id));
-    if (importedTracks.length === 0) return availableCatalogAlbums;
-    return [
-      ...availableCatalogAlbums,
-      {
-        id: 'alb-local-import',
-        title: 'İçe Aktarılan Müzikler',
-        artist: 'Yerel Dosyalar',
-        year: new Date().getFullYear(),
-        coverUrl: importedTracks[0].coverUrl,
-        accentColor: settings.accentColor,
-        trackIds: importedTracks.map((track) => track.id),
-      },
-    ];
-  }, [allTracks, settings.accentColor]);
+    const groups = new Map<string, Track[]>();
+    allTracks
+      .filter((track) => track.audioObjectUrl || track.audioUrl)
+      .forEach((track) => {
+        const key = track.albumId || track.id;
+        const group = groups.get(key) || [];
+        group.push(track);
+        groups.set(key, group);
+      });
 
-  useEffect(() => {
-    if (activeTrack.audioObjectUrl || activeTrack.audioUrl) return;
-    const firstPlayableTrack = allTracks.find((track) => track.audioObjectUrl || track.audioUrl);
-    if (!firstPlayableTrack) return;
-    setActiveTrackId(firstPlayableTrack.id);
-    setCurrentTimeSec(0);
-    setQueue(allTracks.filter((track) => track.audioObjectUrl || track.audioUrl).map((track) => track.id));
-  }, [activeTrack, allTracks]);
+    return [...groups.entries()]
+      .filter(([, group]) => group.length > 1 || group.some((track) => track.isLocal))
+      .map(([id, group]) => {
+        const first = group[0];
+        return {
+          id,
+          title: first.album || 'Albüm',
+          artist: first.artist,
+          year: first.year || 0,
+          coverUrl: first.coverUrl,
+          accentColor: first.accentColor,
+          trackIds: group.map((track) => track.id),
+        };
+      });
+  }, [allTracks]);
 
   const prevTrack = useMemo(() => {
     const prevId = getNextTrackId(queue, activeTrack.id, repeat, false, 'prev');
@@ -495,6 +514,38 @@ export default function App() {
     };
   }, [activeTab, searchQuery]);
 
+  // Search YouTube only while Discover has a real query; debounce and cancel stale requests.
+  useEffect(() => {
+    const query = youtubeSearchQuery.trim();
+    if (activeTab !== 'discover' || query.length < 2) {
+      setYoutubeVideos([]);
+      setYoutubeError(null);
+      setYoutubeLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setYoutubeLoading(true);
+    setYoutubeError(null);
+    const timer = window.setTimeout(() => {
+      void searchYouTubeVideos(query, { signal: controller.signal, limit: 20 })
+        .then((videos) => setYoutubeVideos(videos))
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          setYoutubeVideos([]);
+          setYoutubeError(error instanceof Error ? error.message : 'YouTube araması başarısız oldu.');
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setYoutubeLoading(false);
+        });
+    }, 550);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeTab, youtubeSearchQuery]);
+
   // Restore imported audio and completed offline downloads from persistent IndexedDB storage.
   useEffect(() => {
     let cancelled = false;
@@ -507,7 +558,7 @@ export default function App() {
         const objectUrl = URL.createObjectURL(record.blob);
         objectUrls.push(objectUrl);
         if (record.sourceTrackId) {
-          const sourceTrack = ZUNO_TRACKS.find((track) => track.id === record.sourceTrackId) || record.trackMetadata;
+          const sourceTrack = record.trackMetadata;
           if (!sourceTrack) continue;
           restoredCatalog.push({
             ...sourceTrack,
@@ -603,7 +654,7 @@ export default function App() {
       if (!started) return;
       setRecentIds((prev) => [track.id, ...prev.filter((id) => id !== track.id)].slice(0, 12));
     },
-    [activeTrackId, currentTimeSec, isPlaying, queue, showToast]
+    [activeTrackId, allTracks, currentTimeSec, isPlaying, queue, showToast]
   );
 
   const handleTogglePlay = useCallback(() => {
@@ -665,6 +716,74 @@ export default function App() {
     zunoAudioEngine.setPlaybackRate(playbackRate);
   }, [playbackRate]);
 
+  // Send real track metadata and transport actions to supported system media controls.
+  useEffect(() => {
+    if (!activeTrack.id || !('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    const session = navigator.mediaSession;
+    const artworkUrl = new URL(activeTrack.coverUrl, window.location.href).href;
+
+    try {
+      session.metadata = new MediaMetadata({
+        title: activeTrack.title,
+        artist: activeTrack.artist,
+        album: activeTrack.album,
+        artwork: [{ src: artworkUrl, sizes: '512x512' }],
+      });
+      session.playbackState = isPlaying ? 'playing' : 'paused';
+      const registerAction = (
+        action: MediaSessionAction,
+        handler: MediaSessionActionHandler
+      ) => {
+        try {
+          session.setActionHandler(action, handler);
+        } catch {
+          // Unsupported media actions must not prevent other controls from registering.
+        }
+      };
+      registerAction('play', () => {
+        if (!isPlaying) handleTogglePlay();
+      });
+      registerAction('pause', () => {
+        if (isPlaying) handleTogglePlay();
+      });
+      registerAction('previoustrack', () => handleSkip('prev'));
+      registerAction('nexttrack', () => handleSkip('next'));
+      registerAction('seekbackward', (details) => {
+        const next = Math.max(0, zunoAudioEngine.getCurrentTime() - (details.seekOffset || 10));
+        zunoAudioEngine.seek(next);
+        setCurrentTimeSec(Math.floor(next));
+      });
+      registerAction('seekforward', (details) => {
+        const next = Math.min(zunoAudioEngine.getDuration(), zunoAudioEngine.getCurrentTime() + (details.seekOffset || 10));
+        zunoAudioEngine.seek(next);
+        setCurrentTimeSec(Math.floor(next));
+      });
+      registerAction('seekto', (details) => {
+        if (typeof details.seekTime !== 'number') return;
+        zunoAudioEngine.seek(details.seekTime);
+        setCurrentTimeSec(Math.floor(details.seekTime));
+      });
+    } catch {
+      // Some WebViews expose only part of the Media Session API.
+    }
+
+    return () => {
+      try {
+        session.setActionHandler('play', null);
+        session.setActionHandler('pause', null);
+        session.setActionHandler('previoustrack', null);
+        session.setActionHandler('nexttrack', null);
+        session.setActionHandler('seekbackward', null);
+        session.setActionHandler('seekforward', null);
+        session.setActionHandler('seekto', null);
+      } catch {
+        // Unsupported action handlers are ignored.
+      }
+    };
+  }, [activeTrack, handleSkip, handleTogglePlay, isPlaying]);
+
+
+
   useEffect(() => {
     handleSkipRef.current = handleSkip;
   }, [handleSkip]);
@@ -676,7 +795,20 @@ export default function App() {
         handleSkipRef.current('next');
         return;
       }
-      setCurrentTimeSec(Math.floor(zunoAudioEngine.getCurrentTime()));
+      const current = zunoAudioEngine.getCurrentTime();
+      setCurrentTimeSec(Math.floor(current));
+      const duration = zunoAudioEngine.getDuration();
+      if ('mediaSession' in navigator && duration > 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration,
+            playbackRate,
+            position: Math.min(current, duration),
+          });
+        } catch {
+          // Position state is optional on older WebViews.
+        }
+      }
     }, 250);
     return () => window.clearInterval(id);
   }, [isPlaying]);
@@ -882,7 +1014,7 @@ export default function App() {
         zunoAudioEngine.pause();
         setIsPlaying(false);
         setCurrentTimeSec(0);
-        setActiveTrackId(ZUNO_TRACKS[0].id);
+        setActiveTrackId('');
       }
       setLocalTracks((previous) => previous.filter((item) => item.id !== trackId));
       setDownloads((previous) => previous.filter((item) => item.trackId !== trackId));
@@ -1149,6 +1281,11 @@ export default function App() {
                 downloads={downloads}
                 remoteLoading={audiusLoading}
                 remoteError={audiusError}
+                youtubeVideos={youtubeVideos}
+                youtubeLoading={youtubeLoading}
+                youtubeError={youtubeError}
+                youtubeNeedsSubmit={searchQuery.trim() !== youtubeSearchQuery.trim()}
+                onOpenYouTube={setSelectedYoutubeVideo}
                 favoriteIds={favorites}
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
@@ -1160,6 +1297,9 @@ export default function App() {
                   if (!trimmed) return;
                   setSearchHistory((prev) =>
                     [trimmed, ...prev.filter((item) => item !== trimmed)].slice(0, 8)
+                  );
+                  setYoutubeSearchQuery(
+                    searchCategory === 'all' || searchCategory === 'songs' || searchCategory === 'videos' ? trimmed : ''
                   );
                 }}
                 onClearHistory={() => setSearchHistory([])}
@@ -1189,7 +1329,7 @@ export default function App() {
               />
             ) : activeTab === 'library' ? (
               <LibraryView
-                tracks={ZUNO_TRACKS}
+                tracks={allTracks.filter((track) => !track.isLocal)}
                 localTracks={localTracks}
                 albums={libraryAlbums}
                 artists={libraryArtists}
@@ -1206,7 +1346,7 @@ export default function App() {
                     name,
                     description: description || 'Kişisel çalma listesi',
                     coverUrl: activeTrack.coverUrl,
-                    trackIds: [activeTrack.id],
+                    trackIds: activeTrack.id ? [activeTrack.id] : [],
                     isUserCreated: true,
                     updatedAt: Date.now(),
                   };
@@ -1290,7 +1430,7 @@ export default function App() {
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium opacity-60">Şimdi Oynatılıyor</span>
+              <span className="text-xs font-medium opacity-60">{activeTrack.id ? 'Şimdi Oynatılıyor' : 'Oynatıcı hazır'}</span>
               <button
                 type="button"
                 aria-label="Tam ekran oynatıcıyı aç"
@@ -1447,7 +1587,20 @@ export default function App() {
         </aside>
       </div>
 
-      {/* Mobile / Tablet Bottom Dock: MiniPlayer + FlowingTabs Navigation */}
+      {/* Floating mobile playback island */}
+      {!playerFullscreen && activeTrack.id && (
+        <DynamicIslandPlayer
+          track={activeTrack}
+          isPlaying={isPlaying}
+          currentTimeSec={currentTimeSec}
+          onExpand={() => setPlayerFullscreen(true)}
+          onTogglePlay={handleTogglePlay}
+          onNext={() => handleSkip('next')}
+          accentColor={settings.dynamicPlayerColors ? activeTrack.accentColor : settings.accentColor}
+        />
+      )}
+
+      {/* Mobile / Tablet Bottom Dock: Navigation */}
       <div
         data-testid="mobile-dock"
         className={`lg:hidden fixed bottom-0 left-0 right-0 z-30 px-3 pb-3 pt-4 pointer-events-none bg-gradient-to-t ${
@@ -1457,29 +1610,6 @@ export default function App() {
         }`}
       >
         <div className="mx-auto max-w-md space-y-2 pointer-events-auto">
-          <MiniPlayer
-            track={activeTrack}
-            prevTrack={prevTrack}
-            nextTrack={nextTrack}
-            isPlaying={isPlaying}
-            isFavorite={favorites.includes(activeTrack.id)}
-            currentTimeSec={currentTimeSec}
-            sleepRemainingSec={sleepRemainingSec}
-            onTogglePlay={handleTogglePlay}
-            onToggleFavorite={() => handleToggleFavorite(activeTrack.id)}
-            onPrev={() => handleSkip('prev')}
-            onNext={() => handleSkip('next')}
-            onSeekRatio={(ratio) => {
-              const nextSec = Math.round(ratio * activeTrack.durationSec);
-              setCurrentTimeSec(nextSec);
-              zunoAudioEngine.seek(nextSec);
-            }}
-            onExpand={() => setPlayerFullscreen(true)}
-            accentColor={
-              settings.dynamicPlayerColors ? activeTrack.accentColor : settings.accentColor
-            }
-            darkMode={darkMode}
-          />
           <FlowingTabs
             items={navItems}
             activeId={activeTab}
@@ -1498,7 +1628,7 @@ export default function App() {
       </div>
 
       {/* Tablet / Desktop medium MiniPlayer bar (lg..xl where right sidebar isn't shown) */}
-      <div className="hidden lg:block xl:hidden fixed bottom-4 right-6 z-30 w-96">
+      {activeTrack.id && <div className="hidden lg:block xl:hidden fixed bottom-4 right-6 z-30 w-96">
         <MiniPlayer
           track={activeTrack}
           prevTrack={prevTrack}
@@ -1522,11 +1652,11 @@ export default function App() {
           }
           darkMode={darkMode}
         />
-      </div>
+      </div>}
 
       {/* Fullscreen Immersive Player */}
       <FullscreenPlayer
-        open={playerFullscreen}
+        open={playerFullscreen && Boolean(activeTrack.id)}
         track={activeTrack}
         queueTracks={queueTracks}
         isPlaying={isPlaying}
@@ -1569,6 +1699,11 @@ export default function App() {
         onRemoveFromQueue={(trId) =>
           setQueue((prev) => prev.filter((id) => id !== trId))
         }
+      />
+
+      <YouTubePlayerModal
+        video={selectedYoutubeVideo}
+        onClose={() => setSelectedYoutubeVideo(null)}
       />
 
       {/* Album Detail Sheet/Modal */}
