@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Compass,
@@ -27,15 +27,14 @@ import {
   COVER_PRISM,
   COVER_SUBZERO,
   DEFAULT_SETTINGS,
-  INITIAL_DOWNLOADS,
   INITIAL_PLAYLISTS,
   ZUNO_ALBUMS,
   ZUNO_ARTISTS,
-  ZUNO_LOCAL_TRACKS,
   ZUNO_TRACKS,
 } from './data/zunoCatalog';
-import { advanceDownloadProgress, formatDuration, getNextTrackId } from './utils/zunoLogic';
+import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
+import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -69,7 +68,8 @@ function loadInitialState(): PersistedState {
         favorites: Array.isArray(parsed.favorites) ? parsed.favorites : ['tr-1', 'tr-4', 'tr-5'],
         recentIds: Array.isArray(parsed.recentIds) ? parsed.recentIds : ['tr-1', 'tr-2', 'tr-3', 'tr-5'],
         playlists: Array.isArray(parsed.playlists) ? parsed.playlists : INITIAL_PLAYLISTS,
-        downloads: Array.isArray(parsed.downloads) ? parsed.downloads : INITIAL_DOWNLOADS,
+        // Older releases stored simulated download progress; rebuild this list from real IndexedDB files.
+        downloads: [],
         searchHistory: Array.isArray(parsed.searchHistory)
           ? parsed.searchHistory
           : ['Mert Aras', 'Nocturne', 'Ambient'],
@@ -83,7 +83,7 @@ function loadInitialState(): PersistedState {
     favorites: ['tr-1', 'tr-4', 'tr-5'],
     recentIds: ['tr-1', 'tr-2', 'tr-3', 'tr-5'],
     playlists: INITIAL_PLAYLISTS,
-    downloads: INITIAL_DOWNLOADS,
+    downloads: [],
     searchHistory: ['Mert Aras', 'Nocturne', 'Ambient'],
   };
 }
@@ -96,8 +96,14 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [playerFullscreen, setPlayerFullscreen] = useState(false);
 
-  const [localTracks, setLocalTracks] = useState<Track[]>(ZUNO_LOCAL_TRACKS);
-  const allTracks = useMemo(() => [...ZUNO_TRACKS, ...localTracks], [localTracks]);
+  const [localTracks, setLocalTracks] = useState<Track[]>([]);
+  const [offlineCatalogTracks, setOfflineCatalogTracks] = useState<Track[]>([]);
+  const allTracks = useMemo(() => {
+    const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
+    return [...ZUNO_TRACKS.map((track) => offlineById.get(track.id) || track), ...localTracks];
+  }, [localTracks, offlineCatalogTracks]);
+  const downloadControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const handleSkipRef = useRef<(direction: 'next' | 'prev') => void>(() => undefined);
 
   const [favorites, setFavorites] = useState<string[]>(initial.favorites);
   const [recentIds, setRecentIds] = useState<string[]>(initial.recentIds);
@@ -192,8 +198,84 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [toastMessage]);
 
+  // Restore imported audio and completed offline downloads from persistent IndexedDB storage.
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+    void listAudioFiles().then(async (records) => {
+      const restoredLocals: Track[] = [];
+      const restoredCatalog: Track[] = [];
+      for (const record of records) {
+        if (cancelled) break;
+        const objectUrl = URL.createObjectURL(record.blob);
+        objectUrls.push(objectUrl);
+        if (record.sourceTrackId) {
+          const sourceTrack = ZUNO_TRACKS.find((track) => track.id === record.sourceTrackId);
+          if (!sourceTrack) continue;
+          restoredCatalog.push({
+            ...sourceTrack,
+            audioFileId: record.id,
+            audioObjectUrl: objectUrl,
+            fileSizeMb: Number((record.size / (1024 * 1024)).toFixed(1)),
+          });
+        } else {
+          const title = record.name.replace(/\\.[^/.]+$/, '');
+          restoredLocals.push({
+            id: record.id,
+            title,
+            artist: 'Yerel Dosya',
+            album: 'İçe Aktarılan Müzikler',
+            albumId: 'alb-local-import',
+            durationSec: await readAudioDuration(record.blob),
+            coverUrl: restoredLocals.length % 2 === 0 ? COVER_SUBZERO : COVER_PRISM,
+            category: 'songs',
+            accentColor: DEFAULT_SETTINGS.accentColor,
+            ambientColor: '#1d2b44',
+            bpm: 105,
+            rootNoteHz: 196,
+            fileSizeMb: Number((record.size / (1024 * 1024)).toFixed(1)),
+            folderName: 'Cihaz / İçe Aktarılanlar',
+            isLocal: true,
+            audioFileId: record.id,
+            audioObjectUrl: objectUrl,
+          });
+        }
+      }
+      if (cancelled) {
+        objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+      setLocalTracks((previous) => {
+        const existingIds = new Set(previous.map((track) => track.id));
+        return [...restoredLocals.filter((track) => !existingIds.has(track.id)), ...previous];
+      });
+      setOfflineCatalogTracks(restoredCatalog);
+      setDownloads(restoredCatalog.map((track) => ({
+        id: `offline-${track.id}`,
+        trackId: track.id,
+        status: 'completed' as const,
+        progress: 100,
+        downloadedMb: track.fileSizeMb,
+        totalMb: track.fileSizeMb,
+        addedAt: Date.now(),
+      })));
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Bilinmeyen depolama hatası';
+      showToast(`Kayıtlı müzikler açılamadı: ${message}`);
+    });
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [showToast]);
+
   const handlePlayTrack = useCallback(
     (track: Track, contextIds?: string[]) => {
+      if (!track.audioObjectUrl && !track.audioUrl) {
+        showToast('Bu parça için henüz gerçek ses kaynağı bağlı değil. Kendi ses dosyanı kütüphaneye ekleyebilirsin.');
+        return;
+      }
       if (contextIds && contextIds.length > 0) {
         setQueue(contextIds);
       } else if (!queue.includes(track.id)) {
@@ -205,19 +287,20 @@ export default function App() {
           zunoAudioEngine.pause();
           setIsPlaying(false);
         } else {
-          zunoAudioEngine.resume(track, currentTimeSec);
-          setIsPlaying(true);
+          const resumed = zunoAudioEngine.resume(track, currentTimeSec);
+          setIsPlaying(resumed);
         }
         return;
       }
 
       setActiveTrackId(track.id);
       setCurrentTimeSec(0);
-      setIsPlaying(true);
-      zunoAudioEngine.startTrack(track, 0);
+      const started = zunoAudioEngine.startTrack(track, 0);
+      setIsPlaying(started);
+      if (!started) return;
       setRecentIds((prev) => [track.id, ...prev.filter((id) => id !== track.id)].slice(0, 12));
     },
-    [activeTrackId, currentTimeSec, isPlaying, queue]
+    [activeTrackId, currentTimeSec, isPlaying, queue, showToast]
   );
 
   const handleTogglePlay = useCallback(() => {
@@ -225,10 +308,11 @@ export default function App() {
       zunoAudioEngine.pause();
       setIsPlaying(false);
     } else {
-      zunoAudioEngine.resume(activeTrack, currentTimeSec);
-      setIsPlaying(true);
+      const resumed = zunoAudioEngine.resume(activeTrack, currentTimeSec);
+      setIsPlaying(resumed);
+      if (!resumed) showToast('Bu parça için oynatılabilir ses kaynağı bulunamadı.');
     }
-  }, [activeTrack, currentTimeSec, isPlaying]);
+  }, [activeTrack, currentTimeSec, isPlaying, showToast]);
 
   const handleSkip = useCallback(
     (direction: 'next' | 'prev') => {
@@ -248,10 +332,15 @@ export default function App() {
       setActiveTrackId(nextTrack.id);
       setCurrentTimeSec(0);
       setIsPlaying(true);
-      zunoAudioEngine.startTrack(nextTrack, 0);
+      const started = zunoAudioEngine.startTrack(nextTrack, 0);
+      setIsPlaying(started);
+      if (!started) {
+        showToast('Sıradaki parça için gerçek ses kaynağı bulunamadı.');
+        return;
+      }
       setRecentIds((prev) => [nextTrack.id, ...prev.filter((id) => id !== nextTrack.id)].slice(0, 12));
     },
-    [activeTrack.id, allTracks, currentTimeSec, queue, repeat, shuffle]
+    [activeTrack.id, allTracks, currentTimeSec, queue, repeat, shuffle, showToast]
   );
 
   const handleSetSleepTimer = useCallback(
@@ -268,21 +357,26 @@ export default function App() {
     [showToast]
   );
 
-  // Playback progress loop respecting playbackRate
+  // Read playback time from the real media element instead of a simulated timer.
+  useEffect(() => {
+    zunoAudioEngine.setPlaybackRate(playbackRate);
+  }, [playbackRate]);
+
+  useEffect(() => {
+    handleSkipRef.current = handleSkip;
+  }, [handleSkip]);
+
   useEffect(() => {
     if (!isPlaying) return;
-    const tickMs = Math.max(250, Math.round(1000 / Math.max(0.5, playbackRate)));
     const id = window.setInterval(() => {
-      setCurrentTimeSec((prev) => {
-        if (prev + 1 >= activeTrack.durationSec) {
-          handleSkip('next');
-          return 0;
-        }
-        return prev + 1;
-      });
-    }, tickMs);
+      if (zunoAudioEngine.hasEnded()) {
+        handleSkipRef.current('next');
+        return;
+      }
+      setCurrentTimeSec(Math.floor(zunoAudioEngine.getCurrentTime()));
+    }, 250);
     return () => window.clearInterval(id);
-  }, [isPlaying, playbackRate, activeTrack.durationSec, handleSkip]);
+  }, [isPlaying]);
 
   // Sleep timer countdown loop
   useEffect(() => {
@@ -333,38 +427,98 @@ export default function App() {
   }, [downloads, allTracks, showToast]);
 
   const handleDownloadTrack = useCallback(
-    (track: Track) => {
-      const existing = downloads.find((d) => d.trackId === track.id);
-      if (existing) {
-        if (existing.status === 'completed') {
-          showToast(`${track.title} zaten cihazına indirildi`);
-          return;
+    async (track: Track) => {
+      const existing = downloads.find((item) => item.trackId === track.id);
+      if (existing?.status === 'completed') {
+        showToast(`${track.title} çevrimdışı kullanıma hazır`);
+        return;
+      }
+      if (!track.audioUrl) {
+        if (track.isLocal && track.audioFileId) {
+          const size = track.fileSizeMb;
+          const item: DownloadItem = {
+            id: `offline-${track.id}`,
+            trackId: track.id,
+            status: 'completed',
+            progress: 100,
+            downloadedMb: size,
+            totalMb: size,
+            addedAt: Date.now(),
+          };
+          setDownloads((previous) => [item, ...previous.filter((download) => download.trackId !== track.id)]);
+          showToast(`${track.title} zaten bu cihazda saklanıyor`);
+        } else {
+          showToast('Bu parça için gerçek ses bağlantısı henüz eklenmedi; sahte indirme başlatılmadı.');
         }
-        if (existing.status === 'paused' || existing.status === 'error') {
-          setDownloads((prev) =>
-            prev.map((d) => (d.id === existing.id ? { ...d, status: 'downloading' } : d))
-          );
-          return;
-        }
-        if (existing.status === 'downloading') {
-          setDownloads((prev) =>
-            prev.map((d) => (d.id === existing.id ? { ...d, status: 'paused' } : d))
-          );
-          return;
-        }
+        return;
       }
 
-      const item: DownloadItem = {
-        id: `dl-${Date.now()}-${track.id}`,
+      const downloadId = existing?.id || `dl-${Date.now()}-${track.id}`;
+      const controller = new AbortController();
+      downloadControllersRef.current.set(downloadId, controller);
+      const initialItem: DownloadItem = {
+        id: downloadId,
         trackId: track.id,
         status: 'downloading',
-        progress: 8,
-        downloadedMb: Number((track.fileSizeMb * 0.08).toFixed(1)),
-        totalMb: track.fileSizeMb,
+        progress: 0,
+        downloadedMb: 0,
+        totalMb: 0,
         addedAt: Date.now(),
       };
-      setDownloads((prev) => [item, ...prev]);
+      setDownloads((previous) => [initialItem, ...previous.filter((download) => download.id !== downloadId)]);
       showToast(`İndirme başlatıldı: ${track.title}`);
+
+      try {
+        const blob = await fetchAudioBlob(
+          track.audioUrl,
+          (loadedBytes, totalBytes) => {
+            const totalMb = totalBytes / (1024 * 1024);
+            const downloadedMb = loadedBytes / (1024 * 1024);
+            setDownloads((previous) => previous.map((item) => item.id === downloadId
+              ? {
+                  ...item,
+                  downloadedMb: Number(downloadedMb.toFixed(2)),
+                  totalMb: Number(totalMb.toFixed(2)),
+                  progress: totalBytes > 0 ? Math.min(99, Math.round((loadedBytes / totalBytes) * 100)) : 0,
+                }
+              : item));
+          },
+          controller.signal
+        );
+        const fileId = `offline-${track.id}`;
+        const fileName = `${track.title.replace(/[\\/:*?"<>|]/g, '_')}.audio`;
+        await saveAudioFile(fileId, blob, fileName, track.id);
+        const audioObjectUrl = URL.createObjectURL(blob);
+        const cachedTrack: Track = {
+          ...track,
+          audioFileId: fileId,
+          audioObjectUrl,
+          fileSizeMb: Number((blob.size / (1024 * 1024)).toFixed(2)),
+        };
+        setOfflineCatalogTracks((previous) => [
+          cachedTrack,
+          ...previous.filter((item) => item.id !== track.id),
+        ]);
+        const sizeMb = Number((blob.size / (1024 * 1024)).toFixed(2));
+        setDownloads((previous) => previous.map((item) => item.id === downloadId
+          ? { ...item, status: 'completed', progress: 100, downloadedMb: sizeMb, totalMb: sizeMb }
+          : item));
+        showToast(`İndirme tamamlandı: ${track.title}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'İndirme başarısız oldu.';
+        if (controller.signal.aborted) {
+          setDownloads((previous) => previous.map((item) => item.id === downloadId
+            ? { ...item, status: 'paused' }
+            : item));
+        } else {
+          setDownloads((previous) => previous.map((item) => item.id === downloadId
+            ? { ...item, status: 'error', errorMessage: message }
+            : item));
+          showToast(`${track.title} indirilemedi: ${message}`);
+        }
+      } finally {
+        downloadControllersRef.current.delete(downloadId);
+      }
     },
     [downloads, showToast]
   );
@@ -376,37 +530,80 @@ export default function App() {
   }, []);
 
   const handleImportLocalFiles = useCallback(
-    (files: FileList) => {
-      const imported: Track[] = [];
-      Array.from(files).forEach((file, idx) => {
-        const cleanName = file.name.replace(/\.[^/.]+$/, '');
-        const objectUrl = URL.createObjectURL(file);
-        imported.push({
-          id: `loc-file-${Date.now()}-${idx}`,
-          title: cleanName,
-          artist: 'Yerel Ses Dosyası',
-          album: 'Cihaz İçe Aktarımı',
+    async (files: FileList) => {
+      const audioFiles = Array.from(files).filter((file) =>
+        file.type.startsWith('audio/') || /\\.(mp3|m4a|aac|wav|flac|ogg|opus|wma)$/i.test(file.name)
+      );
+      if (audioFiles.length === 0) {
+        showToast('Desteklenen bir ses dosyası seçilmedi.');
+        return;
+      }
+
+      const results = await Promise.allSettled(audioFiles.map(async (file) => {
+        const id = createAudioId();
+        await saveAudioFile(id, file);
+        const audioObjectUrl = URL.createObjectURL(file);
+        const durationSec = await readAudioDuration(file);
+        return {
+          id,
+          title: file.name.replace(/\\.[^/.]+$/, ''),
+          artist: 'Yerel Dosya',
+          album: 'İçe Aktarılan Müzikler',
           albumId: 'alb-local-import',
-          durationSec: 180,
-          coverUrl: idx % 2 === 0 ? COVER_SUBZERO : COVER_PRISM,
-          category: 'songs',
+          durationSec,
+          coverUrl: COVER_SUBZERO,
+          category: 'songs' as const,
           accentColor: settings.accentColor,
           ambientColor: '#1d2b44',
           bpm: 105,
           rootNoteHz: 196,
-          fileSizeMb: Number(Math.max(0.5, file.size / (1024 * 1024)).toFixed(1)),
-          folderName: '/Device/Imported',
+          fileSizeMb: Number((file.size / (1024 * 1024)).toFixed(2)),
+          folderName: 'Cihaz / İçe Aktarılanlar',
           isLocal: true,
-          audioObjectUrl: objectUrl,
-        });
-      });
+          audioFileId: id,
+          audioObjectUrl,
+        } satisfies Track;
+      }));
+
+      const imported = results
+        .filter((result): result is PromiseFulfilledResult<Track> => result.status === 'fulfilled')
+        .map((result) => result.value);
+      const failures = results.filter((result) => result.status === 'rejected').length;
       if (imported.length > 0) {
-        setLocalTracks((prev) => [...imported, ...prev]);
-        showToast(`${imported.length} yerel müzik dosyası eklendi`);
+        setLocalTracks((previous) => [...imported, ...previous]);
+        showToast(`${imported.length} ses dosyası kalıcı müzik kütüphanesine eklendi`);
+      }
+      if (failures > 0) {
+        showToast(`${failures} dosya cihaz depolamasına kaydedilemedi`);
       }
     },
     [settings.accentColor, showToast]
   );
+
+  const handleDeleteLocalTrack = useCallback(async (trackId: string) => {
+    const track = localTracks.find((item) => item.id === trackId);
+    if (!track) return;
+    try {
+      await deleteAudioFile(track.audioFileId || track.id);
+      if (track.audioObjectUrl) URL.revokeObjectURL(track.audioObjectUrl);
+      if (activeTrackId === trackId) {
+        zunoAudioEngine.pause();
+        setIsPlaying(false);
+        setCurrentTimeSec(0);
+        setActiveTrackId(ZUNO_TRACKS[0].id);
+      }
+      setLocalTracks((previous) => previous.filter((item) => item.id !== trackId));
+      setFavorites((previous) => previous.filter((id) => id !== trackId));
+      setRecentIds((previous) => previous.filter((id) => id !== trackId));
+      setPlaylists((previous) => previous.map((playlist) => ({
+        ...playlist,
+        trackIds: playlist.trackIds.filter((id) => id !== trackId),
+      })));
+      showToast(`${track.title} cihazdan silindi`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Dosya silinemedi.');
+    }
+  }, [activeTrackId, localTracks, showToast]);
 
   const navItems: FlowingTabItem[] = [
     { id: 'home', label: 'Ana Sayfa', icon: <Home className="h-[18px] w-[18px]" /> },
@@ -720,6 +917,7 @@ export default function App() {
                   );
                 }}
                 onImportLocalFiles={handleImportLocalFiles}
+                onDeleteLocalTrack={handleDeleteLocalTrack}
                 accentColor={settings.accentColor}
                 tabStyle={settings.tabStyle}
                 knobShape={settings.knobShape}
@@ -729,23 +927,25 @@ export default function App() {
               <DownloadsView
                 downloads={downloads}
                 tracks={allTracks}
-                onTogglePause={(dlId) =>
-                  setDownloads((prev) =>
-                    prev.map((d) =>
-                      d.id === dlId
-                        ? { ...d, status: d.status === 'paused' ? 'downloading' : 'paused' }
-                        : d
-                    )
-                  )
-                }
-                onRetry={(dlId) =>
-                  setDownloads((prev) =>
-                    prev.map((d) => (d.id === dlId ? { ...d, status: 'downloading' } : d))
-                  )
-                }
-                onCancel={(dlId) =>
-                  setDownloads((prev) => prev.filter((d) => d.id !== dlId))
-                }
+                onTogglePause={(dlId) => {
+                  const item = downloads.find((download) => download.id === dlId);
+                  const controller = downloadControllersRef.current.get(dlId);
+                  if (controller) {
+                    controller.abort();
+                  } else if (item?.status === 'paused' || item?.status === 'error') {
+                    const track = allTracks.find((candidate) => candidate.id === item.trackId);
+                    if (track) void handleDownloadTrack(track);
+                  }
+                }}
+                onRetry={(dlId) => {
+                  const item = downloads.find((download) => download.id === dlId);
+                  const track = item && allTracks.find((candidate) => candidate.id === item.trackId);
+                  if (track) void handleDownloadTrack(track);
+                }}
+                onCancel={(dlId) => {
+                  downloadControllersRef.current.get(dlId)?.abort();
+                  setDownloads((previous) => previous.filter((item) => item.id !== dlId));
+                }}
                 onPlayTrack={(tr) => handlePlayTrack(tr)}
                 accentColor={settings.accentColor}
                 darkMode={darkMode}
