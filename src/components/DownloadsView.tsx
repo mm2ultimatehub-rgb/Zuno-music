@@ -18,7 +18,7 @@ interface DownloadsViewProps {
 const STATUS_LABELS: Record<DownloadStatus, string> = {
   downloading: 'İndiriliyor',
   queued: 'Bekliyor',
-  paused: 'Duraklatıldı',
+  paused: 'Baştan başlatılabilir',
   completed: 'Tamamlandı',
   error: 'Hata oluştu',
 };
@@ -165,8 +165,8 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
                         type="button"
                         aria-label={
                           item.status === 'paused'
-                            ? `${track.title} indirmeyi devam ettir`
-                            : `${track.title} indirmeyi duraklat`
+                            ? `${track.title} indirmeyi baştan başlat`
+                            : `${track.title} indirmeyi durdur`
                         }
                         onClick={() => onTogglePause(item.id)}
                         className="flex h-11 w-11 items-center justify-center rounded-full border border-current/15 hover:bg-white/10"
