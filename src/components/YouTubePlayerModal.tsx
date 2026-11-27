@@ -107,7 +107,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
 
       <div className={expanded
         ? 'fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/85 p-3 backdrop-blur-xl sm:p-6'
-        : 'pointer-events-none fixed bottom-0 right-0 z-[-1] h-px w-px overflow-hidden opacity-0'}
+        : 'pointer-events-none fixed bottom-0 right-0 z-[1] h-px w-px overflow-hidden opacity-0'}
         role={expanded ? 'dialog' : undefined}
         aria-modal={expanded ? true : undefined}
         aria-label={expanded ? 'YouTube oynatıcı' : undefined}
