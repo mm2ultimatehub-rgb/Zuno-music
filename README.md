@@ -32,7 +32,7 @@ Yeni kararlı sürüm GitHub Releases'e yayımlandığında sayfadaki sürüm nu
 - Audius canlı kataloğunda arama ve desteklenen parçaları akış olarak oynatma
 - noFAYZ/zuno projesindeki YouTube Music katalog yaklaşımını uyarlayan gerçek şarkı/albüm/sanatçı araması; kapak ve sanatçı bilgileri YouTube Music'ten alınır
 - Şarkılar, YouTube'un resmî gömülü oynatıcısında ZUNO mini oynatıcı ve önceki/sonraki kuyruk kontrolleriyle açılır
-- Gerçek parça seçilene kadar boş/demode oynatıcı gösterimi; sahte katalog, söz ve indirme kayıtları kullanılmaz
+- Gerçek kaynak verisi olmayan parçalar/sözler/indirmeler sahteymiş gibi gösterilmez
 - Desteklenen tarayıcı/WebView ortamlarında Media Session sistem oynatma bilgileri ve medya tuşları
 - ZUNO hesabı, favoriler, çalma listeleri, ayarlar ve arama geçmişi için Supabase eşitlemesi
 - GitHub Releases üzerinden gerçek sürüm denetimi ve [otomatik çoklu platform indirme sayfası](https://mm2ultimatehub-rgb.github.io/Zuno-music/download.html)
@@ -48,7 +48,7 @@ Kişisel YouTube Music kitaplığını, beğenileri veya sana özel çalma liste
 
 ## Üçüncü taraf kaynak bildirimi
 
-YouTube Music katalog entegrasyonu, [noFAYZ/zuno](https://github.com/noFAYZ/zuno) projesinin açık kaynak yaklaşımından uyarlanmıştır. Kaynak proje Apache License 2.0 ile lisanslıdır; lisans kopyası [licenses/noFAYZ-zuno-APACHE-2.0.txt](licenses/noFAYZ-zuno-APACHE-2.0.txt) dosyasındadır. ZUNO Music için uyarlanan dosyalar: `src/utils/youtubeMusicApi.ts`, `src-tauri/src/lib.rs` ve ilgili oynatıcı/arama bağlantıları.
+YouTube Music katalog entegrasyonu, [noFAYZ/zuno](https://github.com/noFAYZ/zuno) projesinin açık kaynak yaklaşımından uyarlanmıştır. Kaynak proje Apache License 2.0 ile lisanslıdır; lisans kopyası [licenses/noFAYZ-zuno-APACHE-2.0.txt](licenses/noFAYZ-zuno-APACHE-2.0.txt) dosyasındadır. Uyarlama ve lisans kapsamı için [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasına bak.
 
 ## Geliştirme
 
