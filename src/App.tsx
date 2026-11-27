@@ -105,6 +105,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavTabId>('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [cloudReadyUserId, setCloudReadyUserId] = useState<string | null>(null);
@@ -292,8 +293,14 @@ export default function App() {
       setAuthReady(true);
     });
 
-    const { data: { subscription } } = authClient.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = authClient.auth.onAuthStateChange((event, session) => {
       setAuthUser(session?.user || null);
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecoveryMode(true);
+        setAccountOpen(true);
+      } else if (event === 'SIGNED_OUT') {
+        setPasswordRecoveryMode(false);
+      }
       setAuthReady(true);
     });
 
@@ -351,7 +358,7 @@ export default function App() {
 
         if (cancelled) return;
         setCloudReadyUserId(userId);
-        setCloudSyncStatus('synced');
+        setCloudSyncStatus('syncing');
 
         channel = client
           .channel('zuno-user-state-' + userId)
@@ -379,7 +386,9 @@ export default function App() {
             }
           )
           .subscribe((status) => {
-            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            if (status === 'SUBSCRIBED') {
+              setCloudSyncStatus('synced');
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
               setCloudSyncStatus('error');
             }
           });
@@ -1575,6 +1584,8 @@ export default function App() {
         status={cloudSyncStatus}
         darkMode={darkMode}
         accentColor={settings.accentColor}
+        recoveryMode={passwordRecoveryMode}
+        onRecoveryComplete={() => setPasswordRecoveryMode(false)}
       />
     </div>
   );
