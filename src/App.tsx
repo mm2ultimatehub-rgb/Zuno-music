@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArtworkImage } from './components/ArtworkImage';
 import {
   CheckCircle2,
   Compass,
@@ -1145,7 +1146,7 @@ export default function App() {
                       darkMode ? 'hover:bg-white/[0.05]' : 'hover:bg-slate-100'
                     }`}
                   >
-                    <img
+                    <ArtworkImage
                       src={pl.coverUrl}
                       alt={pl.name}
                       referrerPolicy="no-referrer"
@@ -1457,7 +1458,7 @@ export default function App() {
               aria-label={`Tam ekran oynatıcıyı aç: ${activeTrack.title}`}
               className="group relative block w-full aspect-square overflow-hidden rounded-3xl bg-slate-900 shadow-xl"
             >
-              <img
+              <ArtworkImage
                 src={activeTrack.coverUrl}
                 alt={activeTrack.title}
                 referrerPolicy="no-referrer"
@@ -1575,7 +1576,7 @@ export default function App() {
                   darkMode ? 'hover:bg-white/[0.05]' : 'hover:bg-slate-100'
                 }`}
               >
-                <img
+                <ArtworkImage
                   src={qt.coverUrl}
                   alt={qt.title}
                   referrerPolicy="no-referrer"
