@@ -43,6 +43,12 @@ export interface Track {
   folderName?: string;
   isLocal?: boolean;
   audioObjectUrl?: string;
+  audioFileId?: string;
+  audioUrl?: string;
+  downloadUrl?: string;
+  provider?: 'audius';
+  providerTrackId?: string;
+  downloadable?: boolean;
   year?: number;
 }
 

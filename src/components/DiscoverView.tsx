@@ -21,6 +21,8 @@ interface DiscoverViewProps {
   artists: Artist[];
   playlists: Playlist[];
   downloads: DownloadItem[];
+  remoteLoading: boolean;
+  remoteError: string | null;
   favoriteIds: string[];
   query: string;
   onQueryChange: (q: string) => void;
@@ -58,6 +60,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   artists,
   playlists,
   downloads,
+  remoteLoading,
+  remoteError,
   favoriteIds,
   query,
   onQueryChange,
@@ -79,7 +83,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   darkMode,
 }) => {
   const qLower = query.trim().toLocaleLowerCase('tr-TR');
-  const filteredTracks = filterTracksByQueryAndCategory(tracks, query, category);
+  const playableTracks = tracks.filter((track) => Boolean(track.audioUrl || track.audioObjectUrl));
+  const filteredTracks = filterTracksByQueryAndCategory(playableTracks, query, category);
   const filteredAlbums = albums.filter(
     (a) =>
       !qLower ||
@@ -147,6 +152,16 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           )}
         </div>
       </form>
+
+      {(remoteLoading || remoteError) && (
+        <div
+          role={remoteError ? 'alert' : 'status'}
+          aria-live="polite"
+          className={`rounded-xl border px-3.5 py-3 text-xs ${darkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-white'}`}
+        >
+          {remoteLoading ? 'Audius müzik kataloğu aranıyor…' : `Çevrimiçi müzik kaynağı: ${remoteError}`}
+        </div>
+      )}
 
       {/* Search History */}
       {searchHistory.length > 0 && !query.trim() && (
@@ -249,22 +264,28 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                           {track.title}
                         </div>
                         <div className="truncate text-xs opacity-65">
-                          {track.artist} · {track.album} ·{' '}
+                          {track.artist} · {track.provider === 'audius' ? 'Audius' : track.album} ·{' '}
                           <span className="tabular-nums">{formatDuration(track.durationSec)}</span>
                         </div>
                       </div>
                     </button>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <DownloadActionButton
-                        status={dl?.status}
-                        progress={dl?.progress}
-                        onTrigger={() => onDownloadTrack(track)}
-                        accentColor={accentColor}
-                        shapeId={knobShape}
-                        compact
-                        ariaLabel={`${track.title} indir`}
-                      />
+                      {track.provider === 'audius' && !track.downloadable ? (
+                        <span className="px-2 text-[10px] font-medium opacity-50" title="Sanatçı indirmeye izin vermiyor">
+                          İndirme kapalı
+                        </span>
+                      ) : (
+                        <DownloadActionButton
+                          status={dl?.status}
+                          progress={dl?.progress}
+                          onTrigger={() => onDownloadTrack(track)}
+                          accentColor={accentColor}
+                          shapeId={knobShape}
+                          compact
+                          ariaLabel={`${track.title} indir`}
+                        />
+                      )}
                       <TrackContextMenu
                         track={track}
                         isFavorite={isFav}

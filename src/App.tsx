@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Compass,
@@ -12,9 +12,11 @@ import {
   Settings,
   SkipBack,
   SkipForward,
+  UserRound,
 } from 'lucide-react';
 import type {
   Album,
+  Artist,
   DownloadItem,
   NavTabId,
   Playlist,
@@ -27,15 +29,13 @@ import {
   COVER_PRISM,
   COVER_SUBZERO,
   DEFAULT_SETTINGS,
-  INITIAL_DOWNLOADS,
-  INITIAL_PLAYLISTS,
   ZUNO_ALBUMS,
-  ZUNO_ARTISTS,
-  ZUNO_LOCAL_TRACKS,
   ZUNO_TRACKS,
 } from './data/zunoCatalog';
-import { advanceDownloadProgress, formatDuration, getNextTrackId } from './utils/zunoLogic';
+import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
+import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
+import { getTrendingAudiusTracks, searchAudiusTracks } from './utils/audiusApi';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -47,6 +47,11 @@ import { DownloadsView } from './components/DownloadsView';
 import { FullscreenPlayer, MiniPlayer } from './components/PlayerOverlay';
 import { SettingsView } from './components/SettingsView';
 import { AlbumModal } from './components/AlbumModal';
+import { PwaInstallButton } from './components/PwaInstallButton';
+import { AccountModal } from './components/AccountModal';
+import { buildZunoCloudState, normalizeZunoCloudState, type CloudSyncStatus } from './utils/cloudSync';
+import { isSupabaseConfigured, supabase } from './utils/supabaseClient';
+import type { RealtimeChannel, User } from '@supabase/supabase-js';
 
 const STORAGE_KEY = 'zuno-music-state-v1';
 
@@ -66,13 +71,18 @@ function loadInitialState(): PersistedState {
       const parsed = JSON.parse(raw) as Partial<PersistedState>;
       return {
         settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
-        favorites: Array.isArray(parsed.favorites) ? parsed.favorites : ['tr-1', 'tr-4', 'tr-5'],
-        recentIds: Array.isArray(parsed.recentIds) ? parsed.recentIds : ['tr-1', 'tr-2', 'tr-3', 'tr-5'],
-        playlists: Array.isArray(parsed.playlists) ? parsed.playlists : INITIAL_PLAYLISTS,
-        downloads: Array.isArray(parsed.downloads) ? parsed.downloads : INITIAL_DOWNLOADS,
-        searchHistory: Array.isArray(parsed.searchHistory)
-          ? parsed.searchHistory
-          : ['Mert Aras', 'Nocturne', 'Ambient'],
+        favorites: Array.isArray(parsed.favorites)
+          ? parsed.favorites.filter((id) => !/^tr-\\d+$/.test(id))
+          : [],
+        recentIds: Array.isArray(parsed.recentIds)
+          ? parsed.recentIds.filter((id) => !/^tr-\\d+$/.test(id))
+          : [],
+        playlists: Array.isArray(parsed.playlists)
+          ? parsed.playlists.filter((playlist) => playlist.isUserCreated || playlist.trackIds.some((id) => !/^tr-\\d+$/.test(id)))
+          : [],
+        // Older releases stored simulated download progress; rebuild this list from real IndexedDB files.
+        downloads: [],
+        searchHistory: Array.isArray(parsed.searchHistory) ? parsed.searchHistory : [],
       };
     }
   } catch {
@@ -80,11 +90,11 @@ function loadInitialState(): PersistedState {
   }
   return {
     settings: DEFAULT_SETTINGS,
-    favorites: ['tr-1', 'tr-4', 'tr-5'],
-    recentIds: ['tr-1', 'tr-2', 'tr-3', 'tr-5'],
-    playlists: INITIAL_PLAYLISTS,
-    downloads: INITIAL_DOWNLOADS,
-    searchHistory: ['Mert Aras', 'Nocturne', 'Ambient'],
+    favorites: [],
+    recentIds: [],
+    playlists: [],
+    downloads: [],
+    searchHistory: [],
   };
 }
 
@@ -94,16 +104,45 @@ export default function App() {
   const [settings, setSettings] = useState<ZunoSettings>(initial.settings);
   const [activeTab, setActiveTab] = useState<NavTabId>('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [cloudReadyUserId, setCloudReadyUserId] = useState<string | null>(null);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>('disabled');
+  const lastCloudStateJsonRef = useRef('');
   const [playerFullscreen, setPlayerFullscreen] = useState(false);
 
-  const [localTracks, setLocalTracks] = useState<Track[]>(ZUNO_LOCAL_TRACKS);
-  const allTracks = useMemo(() => [...ZUNO_TRACKS, ...localTracks], [localTracks]);
+  const [localTracks, setLocalTracks] = useState<Track[]>([]);
+  const [offlineCatalogTracks, setOfflineCatalogTracks] = useState<Track[]>([]);
+  const [remoteTracks, setRemoteTracks] = useState<Track[]>([]);
+  const [audiusLoading, setAudiusLoading] = useState(false);
+  const [audiusError, setAudiusError] = useState<string | null>(null);
+  const allTracks = useMemo(() => {
+    const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
+    const onlineIds = new Set(remoteTracks.map((track) => track.id));
+    const localCatalogIds = new Set(ZUNO_TRACKS.map((track) => track.id));
+    return [
+      ...remoteTracks.map((track) => offlineById.get(track.id) || track),
+      ...ZUNO_TRACKS.map((track) => offlineById.get(track.id) || track),
+      ...localTracks,
+      ...offlineCatalogTracks.filter((track) => !onlineIds.has(track.id) && !localCatalogIds.has(track.id)),
+    ];
+  }, [localTracks, offlineCatalogTracks, remoteTracks]);
+  const downloadControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const handleSkipRef = useRef<(direction: 'next' | 'prev') => void>(() => undefined);
 
   const [favorites, setFavorites] = useState<string[]>(initial.favorites);
   const [recentIds, setRecentIds] = useState<string[]>(initial.recentIds);
   const [playlists, setPlaylists] = useState<Playlist[]>(initial.playlists);
   const [downloads, setDownloads] = useState<DownloadItem[]>(initial.downloads);
   const [searchHistory, setSearchHistory] = useState<string[]>(initial.searchHistory);
+  const cloudState = useMemo(
+    () => buildZunoCloudState({ settings, favorites, recentIds, playlists, searchHistory }),
+    [settings, favorites, recentIds, playlists, searchHistory]
+  );
+  const cloudStateRef = useRef(cloudState);
+  cloudStateRef.current = cloudState;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState<SearchCategory>('all');
@@ -111,7 +150,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Playback State
-  const [queue, setQueue] = useState<string[]>(() => ZUNO_TRACKS.slice(0, 6).map((t) => t.id));
+  const [queue, setQueue] = useState<string[]>([]);
   const [activeTrackId, setActiveTrackId] = useState<string>(ZUNO_TRACKS[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeSec, setCurrentTimeSec] = useState(34);
@@ -120,12 +159,58 @@ export default function App() {
   const [playbackRate, setPlaybackRate] = useState<number>(1.0);
   const [sleepTimerMin, setSleepTimerMin] = useState<number | null>(null);
   const [sleepRemainingSec, setSleepRemainingSec] = useState<number | null>(null);
-  const [cacheMb, setCacheMb] = useState(42.5);
+  const [cacheMb, setCacheMb] = useState(0);
 
   const activeTrack = useMemo(
-    () => allTracks.find((t) => t.id === activeTrackId) || allTracks[0],
+    () => allTracks.find((track) => track.id === activeTrackId) || allTracks.find((track) => track.audioObjectUrl || track.audioUrl) || allTracks[0],
     [allTracks, activeTrackId]
   );
+
+  const libraryArtists = useMemo(() => {
+    const artists = new Map<string, Artist>();
+    allTracks
+      .filter((track) => track.audioObjectUrl || track.audioUrl)
+      .forEach((track) => {
+        if (!artists.has(track.artist)) {
+          artists.set(track.artist, {
+            id: `artist-${track.provider || 'local'}-${track.artist.toLocaleLowerCase('tr-TR').replace(/[^a-z0-9]+/g, '-')}`,
+            name: track.artist,
+            genre: track.provider === 'audius' ? 'Audius' : 'Yerel müzik',
+            monthlyListeners: track.provider === 'audius' ? 'Audius kataloğu' : 'Cihazındaki müzik',
+            coverUrl: track.coverUrl,
+          });
+        }
+      });
+    return [...artists.values()];
+  }, [allTracks]);
+
+  const libraryAlbums = useMemo(() => {
+    const playableIds = new Set(allTracks.filter((track) => track.audioObjectUrl || track.audioUrl).map((track) => track.id));
+    const availableCatalogAlbums = ZUNO_ALBUMS.filter((album) => album.trackIds.some((id) => playableIds.has(id)));
+    const importedTracks = allTracks.filter((track) => track.isLocal && playableIds.has(track.id));
+    if (importedTracks.length === 0) return availableCatalogAlbums;
+    return [
+      ...availableCatalogAlbums,
+      {
+        id: 'alb-local-import',
+        title: 'İçe Aktarılan Müzikler',
+        artist: 'Yerel Dosyalar',
+        year: new Date().getFullYear(),
+        coverUrl: importedTracks[0].coverUrl,
+        accentColor: settings.accentColor,
+        trackIds: importedTracks.map((track) => track.id),
+      },
+    ];
+  }, [allTracks, settings.accentColor]);
+
+  useEffect(() => {
+    if (activeTrack.audioObjectUrl || activeTrack.audioUrl) return;
+    const firstPlayableTrack = allTracks.find((track) => track.audioObjectUrl || track.audioUrl);
+    if (!firstPlayableTrack) return;
+    setActiveTrackId(firstPlayableTrack.id);
+    setCurrentTimeSec(0);
+    setQueue(allTracks.filter((track) => track.audioObjectUrl || track.audioUrl).map((track) => track.id));
+  }, [activeTrack, allTracks]);
 
   const prevTrack = useMemo(() => {
     const prevId = getNextTrackId(queue, activeTrack.id, repeat, false, 'prev');
@@ -186,18 +271,318 @@ export default function App() {
     setToastMessage(msg);
   }, []);
 
+
+  // Password recovery links opened by Android are routed through Capacitor's native URL handler.
+  useEffect(() => {
+    const handleNativeRecovery = () => {
+      setPasswordRecoveryMode(true);
+      setAccountOpen(true);
+    };
+    window.addEventListener('zuno:password-recovery', handleNativeRecovery);
+    return () => window.removeEventListener('zuno:password-recovery', handleNativeRecovery);
+  }, []);
+
+  // Restore the Supabase session on every platform and keep it updated after login/logout.
+  useEffect(() => {
+    const authClient = supabase;
+    if (!authClient) {
+      setAuthReady(true);
+      setCloudSyncStatus('disabled');
+      return;
+    }
+
+    let active = true;
+    void authClient.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) setCloudSyncStatus('error');
+      setAuthUser(data.session?.user || null);
+      setAuthReady(true);
+    }).catch(() => {
+      if (!active) return;
+      setCloudSyncStatus('error');
+      setAuthReady(true);
+    });
+
+    const { data: { subscription } } = authClient.auth.onAuthStateChange((event, session) => {
+      setAuthUser(session?.user || null);
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecoveryMode(true);
+        setAccountOpen(true);
+      } else if (event === 'SIGNED_OUT') {
+        setPasswordRecoveryMode(false);
+      }
+      setAuthReady(true);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Load a user's cloud library before enabling automatic writes, then listen for other devices.
+  useEffect(() => {
+    if (!authReady) return;
+    const client = supabase;
+    if (!client || !authUser) {
+      setCloudReadyUserId(null);
+      setCloudSyncStatus(isSupabaseConfigured ? 'signed-out' : 'disabled');
+      return;
+    }
+
+    const userId = authUser.id;
+    let cancelled = false;
+    let channel: RealtimeChannel | null = null;
+    setCloudReadyUserId(null);
+    setCloudSyncStatus('syncing');
+
+    const restoreCloudState = async () => {
+      try {
+        const { data, error } = await client
+          .from('zuno_user_state')
+          .select('state')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        if (cancelled) return;
+
+        const restored = normalizeZunoCloudState(data?.state);
+        if (restored) {
+          setSettings({ ...DEFAULT_SETTINGS, ...restored.settings });
+          setFavorites(restored.favorites);
+          setRecentIds(restored.recentIds);
+          setPlaylists(restored.playlists);
+          setSearchHistory(restored.searchHistory);
+          lastCloudStateJsonRef.current = JSON.stringify(restored);
+        } else {
+          // First sign-in: seed this account with the library already on this device.
+          const firstState = cloudStateRef.current;
+          const { error: insertError } = await client.from('zuno_user_state').upsert({
+            user_id: userId,
+            state: firstState,
+            updated_at: new Date().toISOString(),
+          });
+          if (insertError) throw insertError;
+          lastCloudStateJsonRef.current = JSON.stringify(firstState);
+        }
+
+        if (cancelled) return;
+        setCloudReadyUserId(userId);
+        setCloudSyncStatus('syncing');
+
+        channel = client
+          .channel('zuno-user-state-' + userId)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'zuno_user_state',
+              filter: 'user_id=eq.' + userId,
+            },
+            (payload) => {
+              const row = payload.new as { state?: unknown };
+              const nextState = normalizeZunoCloudState(row?.state);
+              if (!nextState) return;
+              const serialized = JSON.stringify(nextState);
+              if (serialized === lastCloudStateJsonRef.current) return;
+              lastCloudStateJsonRef.current = serialized;
+              setSettings({ ...DEFAULT_SETTINGS, ...nextState.settings });
+              setFavorites(nextState.favorites);
+              setRecentIds(nextState.recentIds);
+              setPlaylists(nextState.playlists);
+              setSearchHistory(nextState.searchHistory);
+              setCloudSyncStatus('synced');
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              setCloudSyncStatus('synced');
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              setCloudSyncStatus('error');
+            }
+          });
+      } catch (error) {
+        if (cancelled) return;
+        setCloudSyncStatus('error');
+        showToast(
+          error instanceof Error
+            ? 'Bulut eşitlemesi kurulamadı: ' + error.message
+            : 'Bulut eşitlemesi kurulamadı. Supabase tablo kurulumunu kontrol et.'
+        );
+      }
+    };
+
+    void restoreCloudState();
+    return () => {
+      cancelled = true;
+      if (channel) void client.removeChannel(channel);
+    };
+  }, [authReady, authUser?.id, showToast]);
+
+  // Debounced cloud writes keep settings and library changes synchronized across devices.
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !authUser || cloudReadyUserId !== authUser.id) return;
+    const userId = authUser.id;
+    const serialized = JSON.stringify(cloudState);
+    if (serialized === lastCloudStateJsonRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      setCloudSyncStatus('syncing');
+      void (async () => {
+        try {
+          const { error } = await client.from('zuno_user_state').upsert({
+            user_id: userId,
+            state: cloudState,
+            updated_at: new Date().toISOString(),
+          });
+          if (error) {
+            setCloudSyncStatus('error');
+            return;
+          }
+          // Do not mark an older in-flight save as current if another device changed the state meanwhile.
+          if (JSON.stringify(cloudStateRef.current) === serialized) {
+            lastCloudStateJsonRef.current = serialized;
+            setCloudSyncStatus('synced');
+          }
+        } catch {
+          setCloudSyncStatus('error');
+        }
+      })();
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [authUser?.id, cloudReadyUserId, cloudState]);
+
   useEffect(() => {
     if (!toastMessage) return;
     const t = window.setTimeout(() => setToastMessage(null), 2800);
     return () => window.clearTimeout(t);
   }, [toastMessage]);
 
+  // Load live indie music charts on Home and search Audius as the user types.
+  useEffect(() => {
+    if (activeTab !== 'home' && activeTab !== 'discover') return;
+    const controller = new AbortController();
+    const query = activeTab === 'discover' ? searchQuery.trim() : '';
+    setAudiusLoading(true);
+    setAudiusError(null);
+
+    const timer = window.setTimeout(() => {
+      const request = query
+        ? searchAudiusTracks(query, { signal: controller.signal, limit: 30 })
+        : getTrendingAudiusTracks({ signal: controller.signal, limit: 30 });
+      void request.then((tracks) => {
+        setRemoteTracks((previous) => {
+          const merged = new Map(tracks.map((track) => [track.id, track]));
+          previous.forEach((track) => {
+            if (!merged.has(track.id)) merged.set(track.id, track);
+          });
+          return [...merged.values()].slice(0, 150);
+        });
+      }).catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setAudiusError(error instanceof Error ? error.message : 'Audius kataloğu yüklenemedi.');
+      }).finally(() => {
+        if (!controller.signal.aborted) setAudiusLoading(false);
+      });
+    }, query ? 350 : 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeTab, searchQuery]);
+
+  // Restore imported audio and completed offline downloads from persistent IndexedDB storage.
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+    void listAudioFiles().then(async (records) => {
+      const restoredLocals: Track[] = [];
+      const restoredCatalog: Track[] = [];
+      for (const record of records) {
+        if (cancelled) break;
+        const objectUrl = URL.createObjectURL(record.blob);
+        objectUrls.push(objectUrl);
+        if (record.sourceTrackId) {
+          const sourceTrack = ZUNO_TRACKS.find((track) => track.id === record.sourceTrackId) || record.trackMetadata;
+          if (!sourceTrack) continue;
+          restoredCatalog.push({
+            ...sourceTrack,
+            audioFileId: record.id,
+            audioObjectUrl: objectUrl,
+            fileSizeMb: Number((record.size / (1024 * 1024)).toFixed(1)),
+          });
+        } else {
+          const title = record.name.replace(/\.[^/.]+$/, '');
+          restoredLocals.push({
+            id: record.id,
+            title,
+            artist: 'Yerel Dosya',
+            album: 'İçe Aktarılan Müzikler',
+            albumId: 'alb-local-import',
+            durationSec: await readAudioDuration(record.blob),
+            coverUrl: restoredLocals.length % 2 === 0 ? COVER_SUBZERO : COVER_PRISM,
+            category: 'songs',
+            accentColor: DEFAULT_SETTINGS.accentColor,
+            ambientColor: '#1d2b44',
+            bpm: 105,
+            rootNoteHz: 196,
+            fileSizeMb: Number((record.size / (1024 * 1024)).toFixed(1)),
+            folderName: 'Cihaz / İçe Aktarılanlar',
+            isLocal: true,
+            audioFileId: record.id,
+            audioObjectUrl: objectUrl,
+          });
+        }
+      }
+      if (cancelled) {
+        objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+      setLocalTracks((previous) => {
+        const existingIds = new Set(previous.map((track) => track.id));
+        return [...restoredLocals.filter((track) => !existingIds.has(track.id)), ...previous];
+      });
+      setOfflineCatalogTracks(restoredCatalog);
+      setDownloads(restoredCatalog.map((track) => ({
+        id: `offline-${track.id}`,
+        trackId: track.id,
+        status: 'completed' as const,
+        progress: 100,
+        downloadedMb: track.fileSizeMb,
+        totalMb: track.fileSizeMb,
+        addedAt: Date.now(),
+      })));
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Bilinmeyen depolama hatası';
+      showToast(`Kayıtlı müzikler açılamadı: ${message}`);
+    });
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [showToast]);
+
   const handlePlayTrack = useCallback(
     (track: Track, contextIds?: string[]) => {
+      if (!track.audioObjectUrl && !track.audioUrl) {
+        showToast('Bu parça için henüz gerçek ses kaynağı bağlı değil. Kendi ses dosyanı kütüphaneye ekleyebilirsin.');
+        return;
+      }
       if (contextIds && contextIds.length > 0) {
         setQueue(contextIds);
-      } else if (!queue.includes(track.id)) {
-        setQueue((prev) => [track.id, ...prev]);
+      } else {
+        const playableIds = allTracks
+          .filter((item) => item.audioObjectUrl || item.audioUrl)
+          .map((item) => item.id);
+        setQueue((previous) => {
+          const retained = previous.filter((id) => id !== track.id && playableIds.includes(id));
+          return [track.id, ...retained, ...playableIds.filter((id) => id !== track.id && !retained.includes(id))];
+        });
       }
 
       if (activeTrackId === track.id) {
@@ -205,19 +590,20 @@ export default function App() {
           zunoAudioEngine.pause();
           setIsPlaying(false);
         } else {
-          zunoAudioEngine.resume(track, currentTimeSec);
-          setIsPlaying(true);
+          const resumed = zunoAudioEngine.resume(track, currentTimeSec);
+          setIsPlaying(resumed);
         }
         return;
       }
 
       setActiveTrackId(track.id);
       setCurrentTimeSec(0);
-      setIsPlaying(true);
-      zunoAudioEngine.startTrack(track, 0);
+      const started = zunoAudioEngine.startTrack(track, 0);
+      setIsPlaying(started);
+      if (!started) return;
       setRecentIds((prev) => [track.id, ...prev.filter((id) => id !== track.id)].slice(0, 12));
     },
-    [activeTrackId, currentTimeSec, isPlaying, queue]
+    [activeTrackId, currentTimeSec, isPlaying, queue, showToast]
   );
 
   const handleTogglePlay = useCallback(() => {
@@ -225,10 +611,11 @@ export default function App() {
       zunoAudioEngine.pause();
       setIsPlaying(false);
     } else {
-      zunoAudioEngine.resume(activeTrack, currentTimeSec);
-      setIsPlaying(true);
+      const resumed = zunoAudioEngine.resume(activeTrack, currentTimeSec);
+      setIsPlaying(resumed);
+      if (!resumed) showToast('Bu parça için oynatılabilir ses kaynağı bulunamadı.');
     }
-  }, [activeTrack, currentTimeSec, isPlaying]);
+  }, [activeTrack, currentTimeSec, isPlaying, showToast]);
 
   const handleSkip = useCallback(
     (direction: 'next' | 'prev') => {
@@ -248,10 +635,15 @@ export default function App() {
       setActiveTrackId(nextTrack.id);
       setCurrentTimeSec(0);
       setIsPlaying(true);
-      zunoAudioEngine.startTrack(nextTrack, 0);
+      const started = zunoAudioEngine.startTrack(nextTrack, 0);
+      setIsPlaying(started);
+      if (!started) {
+        showToast('Sıradaki parça için gerçek ses kaynağı bulunamadı.');
+        return;
+      }
       setRecentIds((prev) => [nextTrack.id, ...prev.filter((id) => id !== nextTrack.id)].slice(0, 12));
     },
-    [activeTrack.id, allTracks, currentTimeSec, queue, repeat, shuffle]
+    [activeTrack.id, allTracks, currentTimeSec, queue, repeat, shuffle, showToast]
   );
 
   const handleSetSleepTimer = useCallback(
@@ -268,21 +660,26 @@ export default function App() {
     [showToast]
   );
 
-  // Playback progress loop respecting playbackRate
+  // Read playback time from the real media element instead of a simulated timer.
+  useEffect(() => {
+    zunoAudioEngine.setPlaybackRate(playbackRate);
+  }, [playbackRate]);
+
+  useEffect(() => {
+    handleSkipRef.current = handleSkip;
+  }, [handleSkip]);
+
   useEffect(() => {
     if (!isPlaying) return;
-    const tickMs = Math.max(250, Math.round(1000 / Math.max(0.5, playbackRate)));
     const id = window.setInterval(() => {
-      setCurrentTimeSec((prev) => {
-        if (prev + 1 >= activeTrack.durationSec) {
-          handleSkip('next');
-          return 0;
-        }
-        return prev + 1;
-      });
-    }, tickMs);
+      if (zunoAudioEngine.hasEnded()) {
+        handleSkipRef.current('next');
+        return;
+      }
+      setCurrentTimeSec(Math.floor(zunoAudioEngine.getCurrentTime()));
+    }, 250);
     return () => window.clearInterval(id);
-  }, [isPlaying, playbackRate, activeTrack.durationSec, handleSkip]);
+  }, [isPlaying]);
 
   // Sleep timer countdown loop
   useEffect(() => {
@@ -303,68 +700,112 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [isPlaying, sleepRemainingSec !== null, showToast]);
 
-  // Download manager progression loop
-  useEffect(() => {
-    const hasActive = downloads.some((d) => d.status === 'downloading');
-    if (!hasActive) return;
-
-    const timer = window.setInterval(() => {
-      setDownloads((prev) => {
-        const newlyCompleted: string[] = [];
-        const next = prev.map((d) => {
-          if (d.status !== 'downloading') return d;
-          const updated = advanceDownloadProgress(d, 14);
-          if (updated.status === 'completed') {
-            newlyCompleted.push(d.trackId);
-          }
-          return updated;
-        });
-        if (newlyCompleted.length > 0) {
-          const tr = allTracks.find((t) => t.id === newlyCompleted[0]);
-          if (tr) {
-            showToast(`İndirme tamamlandı: ${tr.title}`);
-          }
-        }
-        return next;
-      });
-    }, 450);
-
-    return () => window.clearInterval(timer);
-  }, [downloads, allTracks, showToast]);
-
   const handleDownloadTrack = useCallback(
-    (track: Track) => {
-      const existing = downloads.find((d) => d.trackId === track.id);
-      if (existing) {
-        if (existing.status === 'completed') {
-          showToast(`${track.title} zaten cihazına indirildi`);
-          return;
+    async (track: Track) => {
+      const existing = downloads.find((item) => item.trackId === track.id);
+      if (existing?.status === 'completed') {
+        showToast(`${track.title} çevrimdışı kullanıma hazır`);
+        return;
+      }
+      if (existing?.status === 'downloading') {
+        const runningController = downloadControllersRef.current.get(existing.id);
+        if (runningController) {
+          runningController.abort();
+        } else {
+          showToast('İndirme işlemi zaten çalışıyor.');
         }
-        if (existing.status === 'paused' || existing.status === 'error') {
-          setDownloads((prev) =>
-            prev.map((d) => (d.id === existing.id ? { ...d, status: 'downloading' } : d))
-          );
-          return;
+        return;
+      }
+      if (track.provider === 'audius' && !track.downloadable) {
+        showToast('Bu parçanın sanatçısı indirmeye izin vermiyor. Çevrimiçi dinleyebilirsin.');
+        return;
+      }
+      if (!track.downloadUrl) {
+        if (track.isLocal && track.audioFileId) {
+          const size = track.fileSizeMb;
+          const item: DownloadItem = {
+            id: `offline-${track.id}`,
+            trackId: track.id,
+            status: 'completed',
+            progress: 100,
+            downloadedMb: size,
+            totalMb: size,
+            addedAt: Date.now(),
+          };
+          setDownloads((previous) => [item, ...previous.filter((download) => download.trackId !== track.id)]);
+          showToast(`${track.title} zaten bu cihazda saklanıyor`);
+        } else {
+          showToast('Bu parça için gerçek ses bağlantısı henüz eklenmedi; sahte indirme başlatılmadı.');
         }
-        if (existing.status === 'downloading') {
-          setDownloads((prev) =>
-            prev.map((d) => (d.id === existing.id ? { ...d, status: 'paused' } : d))
-          );
-          return;
-        }
+        return;
       }
 
-      const item: DownloadItem = {
-        id: `dl-${Date.now()}-${track.id}`,
+      const downloadId = existing?.id || `dl-${Date.now()}-${track.id}`;
+      const controller = new AbortController();
+      downloadControllersRef.current.set(downloadId, controller);
+      const initialItem: DownloadItem = {
+        id: downloadId,
         trackId: track.id,
         status: 'downloading',
-        progress: 8,
-        downloadedMb: Number((track.fileSizeMb * 0.08).toFixed(1)),
-        totalMb: track.fileSizeMb,
+        progress: 0,
+        downloadedMb: 0,
+        totalMb: 0,
         addedAt: Date.now(),
       };
-      setDownloads((prev) => [item, ...prev]);
+      setDownloads((previous) => [initialItem, ...previous.filter((download) => download.id !== downloadId)]);
       showToast(`İndirme başlatıldı: ${track.title}`);
+
+      try {
+        const blob = await fetchAudioBlob(
+          track.downloadUrl,
+          (loadedBytes, totalBytes) => {
+            const totalMb = totalBytes / (1024 * 1024);
+            const downloadedMb = loadedBytes / (1024 * 1024);
+            setDownloads((previous) => previous.map((item) => item.id === downloadId
+              ? {
+                  ...item,
+                  downloadedMb: Number(downloadedMb.toFixed(2)),
+                  totalMb: Number(totalMb.toFixed(2)),
+                  progress: totalBytes > 0 ? Math.min(99, Math.round((loadedBytes / totalBytes) * 100)) : 0,
+                }
+              : item));
+          },
+          controller.signal
+        );
+        const fileId = `offline-${track.id}`;
+        const fileName = `${track.title.replace(/[\\/:*?"<>|]/g, '_')}.audio`;
+        await saveAudioFile(fileId, blob, fileName, track.id, track);
+        const audioObjectUrl = URL.createObjectURL(blob);
+        const cachedTrack: Track = {
+          ...track,
+          audioFileId: fileId,
+          audioObjectUrl,
+          fileSizeMb: Number((blob.size / (1024 * 1024)).toFixed(2)),
+        };
+        setOfflineCatalogTracks((previous) => [
+          cachedTrack,
+          ...previous.filter((item) => item.id !== track.id),
+        ]);
+        const sizeMb = Number((blob.size / (1024 * 1024)).toFixed(2));
+        setDownloads((previous) => previous.map((item) => item.id === downloadId
+          ? { ...item, status: 'completed', progress: 100, downloadedMb: sizeMb, totalMb: sizeMb }
+          : item));
+        showToast(`İndirme tamamlandı: ${track.title}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'İndirme başarısız oldu.';
+        if (controller.signal.aborted) {
+          setDownloads((previous) => previous.map((item) => item.id === downloadId
+            ? { ...item, status: 'paused', progress: 0, downloadedMb: 0 }
+            : item));
+        } else {
+          setDownloads((previous) => previous.map((item) => item.id === downloadId
+            ? { ...item, status: 'error', errorMessage: message }
+            : item));
+          showToast(`${track.title} indirilemedi: ${message}`);
+        }
+      } finally {
+        downloadControllersRef.current.delete(downloadId);
+      }
     },
     [downloads, showToast]
   );
@@ -376,37 +817,87 @@ export default function App() {
   }, []);
 
   const handleImportLocalFiles = useCallback(
-    (files: FileList) => {
-      const imported: Track[] = [];
-      Array.from(files).forEach((file, idx) => {
-        const cleanName = file.name.replace(/\.[^/.]+$/, '');
-        const objectUrl = URL.createObjectURL(file);
-        imported.push({
-          id: `loc-file-${Date.now()}-${idx}`,
-          title: cleanName,
-          artist: 'Yerel Ses Dosyası',
-          album: 'Cihaz İçe Aktarımı',
+    async (files: FileList) => {
+      const audioFiles = Array.from(files).filter((file) =>
+        file.type.startsWith('audio/') || /\.(mp3|m4a|aac|wav|flac|ogg|opus|wma)$/i.test(file.name)
+      );
+      if (audioFiles.length === 0) {
+        showToast('Desteklenen bir ses dosyası seçilmedi.');
+        return;
+      }
+
+      const results = await Promise.allSettled(audioFiles.map(async (file) => {
+        const id = createAudioId();
+        await saveAudioFile(id, file);
+        const audioObjectUrl = URL.createObjectURL(file);
+        const durationSec = await readAudioDuration(file);
+        return {
+          id,
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          artist: 'Yerel Dosya',
+          album: 'İçe Aktarılan Müzikler',
           albumId: 'alb-local-import',
-          durationSec: 180,
-          coverUrl: idx % 2 === 0 ? COVER_SUBZERO : COVER_PRISM,
-          category: 'songs',
+          durationSec,
+          coverUrl: COVER_SUBZERO,
+          category: 'songs' as const,
           accentColor: settings.accentColor,
           ambientColor: '#1d2b44',
           bpm: 105,
           rootNoteHz: 196,
-          fileSizeMb: Number(Math.max(0.5, file.size / (1024 * 1024)).toFixed(1)),
-          folderName: '/Device/Imported',
+          fileSizeMb: Number((file.size / (1024 * 1024)).toFixed(2)),
+          folderName: 'Cihaz / İçe Aktarılanlar',
           isLocal: true,
-          audioObjectUrl: objectUrl,
-        });
+          audioFileId: id,
+          audioObjectUrl,
+        } satisfies Track;
+      }));
+
+      const imported: Track[] = [];
+      let failures = 0;
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          imported.push(result.value as Track);
+        } else {
+          failures += 1;
+        }
       });
       if (imported.length > 0) {
-        setLocalTracks((prev) => [...imported, ...prev]);
-        showToast(`${imported.length} yerel müzik dosyası eklendi`);
+        setLocalTracks((previous) => [...imported, ...previous]);
+        showToast(`${imported.length} ses dosyası kalıcı müzik kütüphanesine eklendi`);
+      }
+      if (failures > 0) {
+        showToast(`${failures} dosya cihaz depolamasına kaydedilemedi`);
       }
     },
     [settings.accentColor, showToast]
   );
+
+  const handleDeleteLocalTrack = useCallback(async (trackId: string) => {
+    const track = localTracks.find((item) => item.id === trackId);
+    if (!track) return;
+    try {
+      await deleteAudioFile(track.audioFileId || track.id);
+      if (track.audioObjectUrl) URL.revokeObjectURL(track.audioObjectUrl);
+      if (activeTrackId === trackId) {
+        zunoAudioEngine.pause();
+        setIsPlaying(false);
+        setCurrentTimeSec(0);
+        setActiveTrackId(ZUNO_TRACKS[0].id);
+      }
+      setLocalTracks((previous) => previous.filter((item) => item.id !== trackId));
+      setDownloads((previous) => previous.filter((item) => item.trackId !== trackId));
+      setQueue((previous) => previous.filter((id) => id !== trackId));
+      setFavorites((previous) => previous.filter((id) => id !== trackId));
+      setRecentIds((previous) => previous.filter((id) => id !== trackId));
+      setPlaylists((previous) => previous.map((playlist) => ({
+        ...playlist,
+        trackIds: playlist.trackIds.filter((id) => id !== trackId),
+      })));
+      showToast(`${track.title} cihazdan silindi`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Dosya silinemedi.');
+    }
+  }, [activeTrackId, localTracks, showToast]);
 
   const navItems: FlowingTabItem[] = [
     { id: 'home', label: 'Ana Sayfa', icon: <Home className="h-[18px] w-[18px]" /> },
@@ -424,7 +915,9 @@ export default function App() {
     .filter((t): t is Track => Boolean(t));
 
   const storageUsedMb =
-    cacheMb + downloads.reduce((sum, d) => sum + d.downloadedMb, 0);
+    cacheMb +
+    localTracks.reduce((sum, track) => sum + track.fileSizeMb, 0) +
+    downloads.reduce((sum, item) => sum + item.downloadedMb, 0);
 
   return (
     <div
@@ -585,6 +1078,23 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              <PwaInstallButton accentColor={settings.accentColor} darkMode={darkMode} />
+              <button
+                type="button"
+                aria-label={authUser ? 'Hesap ve senkronizasyon' : 'Giriş yap'}
+                title={authUser?.email || 'ZUNO hesabı'}
+                onClick={() => setAccountOpen(true)}
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                  darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-900/10'
+                }`}
+                style={authUser ? { color: settings.accentColor } : undefined}
+              >
+                {authUser?.email ? (
+                  <span className="text-sm font-bold">{authUser.email.slice(0, 1).toUpperCase()}</span>
+                ) : (
+                  <UserRound className="h-5 w-5" />
+                )}
+              </button>
               <button
                 type="button"
                 aria-label="Ayarlar"
@@ -620,7 +1130,7 @@ export default function App() {
             ) : activeTab === 'home' ? (
               <HomeView
                 tracks={allTracks}
-                albums={ZUNO_ALBUMS}
+                albums={libraryAlbums}
                 recentTrackIds={recentIds}
                 activeTrack={activeTrack}
                 isPlaying={isPlaying}
@@ -633,10 +1143,12 @@ export default function App() {
             ) : activeTab === 'discover' ? (
               <DiscoverView
                 tracks={allTracks}
-                albums={ZUNO_ALBUMS}
-                artists={ZUNO_ARTISTS}
+                albums={libraryAlbums}
+                artists={libraryArtists}
                 playlists={playlists}
                 downloads={downloads}
+                remoteLoading={audiusLoading}
+                remoteError={audiusError}
                 favoriteIds={favorites}
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
@@ -679,8 +1191,8 @@ export default function App() {
               <LibraryView
                 tracks={ZUNO_TRACKS}
                 localTracks={localTracks}
-                albums={ZUNO_ALBUMS}
-                artists={ZUNO_ARTISTS}
+                albums={libraryAlbums}
+                artists={libraryArtists}
                 playlists={playlists}
                 favoriteIds={favorites}
                 recentTrackIds={recentIds}
@@ -720,6 +1232,7 @@ export default function App() {
                   );
                 }}
                 onImportLocalFiles={handleImportLocalFiles}
+                onDeleteLocalTrack={handleDeleteLocalTrack}
                 accentColor={settings.accentColor}
                 tabStyle={settings.tabStyle}
                 knobShape={settings.knobShape}
@@ -729,23 +1242,38 @@ export default function App() {
               <DownloadsView
                 downloads={downloads}
                 tracks={allTracks}
-                onTogglePause={(dlId) =>
-                  setDownloads((prev) =>
-                    prev.map((d) =>
-                      d.id === dlId
-                        ? { ...d, status: d.status === 'paused' ? 'downloading' : 'paused' }
-                        : d
-                    )
-                  )
-                }
-                onRetry={(dlId) =>
-                  setDownloads((prev) =>
-                    prev.map((d) => (d.id === dlId ? { ...d, status: 'downloading' } : d))
-                  )
-                }
-                onCancel={(dlId) =>
-                  setDownloads((prev) => prev.filter((d) => d.id !== dlId))
-                }
+                onTogglePause={(dlId) => {
+                  const item = downloads.find((download) => download.id === dlId);
+                  const controller = downloadControllersRef.current.get(dlId);
+                  if (controller) {
+                    controller.abort();
+                  } else if (item?.status === 'paused' || item?.status === 'error') {
+                    const track = allTracks.find((candidate) => candidate.id === item.trackId);
+                    if (track) void handleDownloadTrack(track);
+                  }
+                }}
+                onRetry={(dlId) => {
+                  const item = downloads.find((download) => download.id === dlId);
+                  const track = item && allTracks.find((candidate) => candidate.id === item.trackId);
+                  if (track) void handleDownloadTrack(track);
+                }}
+                onCancel={async (dlId) => {
+                  downloadControllersRef.current.get(dlId)?.abort();
+                  const item = downloads.find((download) => download.id === dlId);
+                  const cachedTrack = item && allTracks.find((track) => track.id === item.trackId);
+                  if (cachedTrack?.audioFileId && !cachedTrack.isLocal) {
+                    try {
+                      await deleteAudioFile(cachedTrack.audioFileId);
+                      if (cachedTrack.audioObjectUrl) URL.revokeObjectURL(cachedTrack.audioObjectUrl);
+                      setOfflineCatalogTracks((previous) => previous.filter((track) => track.id !== cachedTrack.id));
+                    } catch (error) {
+                      showToast(error instanceof Error ? error.message : 'Çevrimdışı dosya silinemedi.');
+                      return;
+                    }
+                  }
+                  setDownloads((previous) => previous.filter((download) => download.id !== dlId));
+                  showToast('İndirme kaydı kaldırıldı');
+                }}
                 onPlayTrack={(tr) => handlePlayTrack(tr)}
                 accentColor={settings.accentColor}
                 darkMode={darkMode}
@@ -1057,6 +1585,17 @@ export default function App() {
         accentColor={settings.accentColor}
         knobShape={settings.knobShape}
         darkMode={darkMode}
+      />
+
+      <AccountModal
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        user={authUser}
+        status={cloudSyncStatus}
+        darkMode={darkMode}
+        accentColor={settings.accentColor}
+        recoveryMode={passwordRecoveryMode}
+        onRecoveryComplete={() => setPasswordRecoveryMode(false)}
       />
     </div>
   );

@@ -1,0 +1,270 @@
+name: ZUNO native app builds
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version, for example 0.1.1. Leave empty for test builds."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zuno-native-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  auto-version:
+    name: Calculate next automatic release version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Calculate next patch version from published releases and tags
+        id: version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const packageVersion = JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
+            const parse = (value) => {
+              const match = String(value).replace(/^v/i, '').match(/^(\d+)\.(\d+)\.(\d+)$/);
+              return match ? match.slice(1).map(Number) : null;
+            };
+            const compare = (a, b) => {
+              for (let i = 0; i < 3; i += 1) {
+                if (a[i] !== b[i]) return a[i] - b[i];
+              }
+              return 0;
+            };
+            const { owner, repo } = context.repo;
+            const [releaseResponse, tagResponse] = await Promise.all([
+              github.rest.repos.listReleases({ owner, repo, per_page: 100 }),
+              github.rest.git.listMatchingRefs({ owner, repo, ref: 'tags/v' }),
+            ]);
+            const candidates = [packageVersion];
+            for (const release of releaseResponse.data) {
+              if (!release.draft && !release.prerelease) candidates.push(release.tag_name);
+            }
+            for (const ref of tagResponse.data) candidates.push(ref.ref.replace('refs/tags/', ''));
+            const parsed = candidates.map(parse).filter(Boolean).sort(compare);
+            const latest = parsed.length ? parsed[parsed.length - 1] : [0, 1, 0];
+            let next = [latest[0], latest[1], latest[2] + 1];
+            const existing = new Set(tagResponse.data.map((ref) => ref.ref));
+            while (existing.has('refs/tags/v' + next.join('.'))) next = [next[0], next[1], next[2] + 1];
+            const version = next.join('.');
+            core.setOutput('version', version);
+            core.notice('Automatic ZUNO release version: v' + version);
+
+  android:
+    name: Android APK
+    needs: auto-version
+    if: ${{ always() && !cancelled() && (needs.auto-version.result == 'success' || needs.auto-version.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Set application version
+        shell: bash
+        env:
+          REQUESTED_RELEASE_VERSION: ${{ inputs.release_version }}
+          AUTO_RELEASE_VERSION: ${{ needs.auto-version.outputs.version }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [[ -n "$AUTO_RELEASE_VERSION" ]]; then
+            VERSION="$AUTO_RELEASE_VERSION"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && -n "$REQUESTED_RELEASE_VERSION" ]]; then
+            VERSION="$REQUESTED_RELEASE_VERSION"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Release version must use MAJOR.MINOR.PATCH, for example 0.1.1"
+              exit 1
+            fi
+          fi
+          echo "ZUNO_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
+          echo "VITE_APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "ZUNO_VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
+      - name: Type-check and web bundle
+        run: |
+          npm run lint
+          npm run build
+      - name: Generate Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+      - name: Require and decode release signing key
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        env:
+          ZUNO_KEYSTORE_BASE64: ${{ secrets.ZUNO_KEYSTORE_BASE64 }}
+          ZUNO_KEYSTORE_PASSWORD: ${{ secrets.ZUNO_KEYSTORE_PASSWORD }}
+          ZUNO_KEY_ALIAS: ${{ secrets.ZUNO_KEY_ALIAS }}
+          ZUNO_KEY_PASSWORD: ${{ secrets.ZUNO_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          for key in ZUNO_KEYSTORE_BASE64 ZUNO_KEYSTORE_PASSWORD ZUNO_KEY_ALIAS ZUNO_KEY_PASSWORD; do
+            if [[ -z "${!key}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $key"
+              exit 1
+            fi
+          done
+          KEYSTORE_PATH="$RUNNER_TEMP/zuno-release.jks"
+          printf '%s' "$ZUNO_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          echo "ZUNO_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+      - name: Prepare app version, signing and auth deep link
+        run: node scripts/prepare-android.mjs
+      - name: Build signed release APK
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        env:
+          ZUNO_KEYSTORE_PASSWORD: ${{ secrets.ZUNO_KEYSTORE_PASSWORD }}
+          ZUNO_KEY_ALIAS: ${{ secrets.ZUNO_KEY_ALIAS }}
+          ZUNO_KEY_PASSWORD: ${{ secrets.ZUNO_KEY_PASSWORD }}
+        run: cd android && ./gradlew --no-daemon assembleRelease
+      - name: Build debug APK for testing
+        if: ${{ !(startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        run: cd android && ./gradlew --no-daemon assembleDebug
+      - name: Upload signed release APK
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: zuno-android-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload debug APK
+        if: ${{ !(startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: zuno-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  desktop:
+    name: Desktop app (${{ matrix.platform }})
+    needs: auto-version
+    if: ${{ always() && !cancelled() && (needs.auto-version.result == 'success' || needs.auto-version.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux
+            os: ubuntu-latest
+            artifact: zuno-desktop-linux
+          - platform: Windows
+            os: windows-latest
+            artifact: zuno-desktop-windows
+          - platform: macOS
+            os: macos-latest
+            artifact: zuno-desktop-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl wget file libssl-dev libxdo-dev \
+            libwebkit2gtk-4.1-dev librsvg2-dev patchelf
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Set application version
+        shell: bash
+        env:
+          REQUESTED_RELEASE_VERSION: ${{ inputs.release_version }}
+          AUTO_RELEASE_VERSION: ${{ needs.auto-version.outputs.version }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [[ -n "$AUTO_RELEASE_VERSION" ]]; then
+            VERSION="$AUTO_RELEASE_VERSION"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && -n "$REQUESTED_RELEASE_VERSION" ]]; then
+            VERSION="$REQUESTED_RELEASE_VERSION"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Release version must use MAJOR.MINOR.PATCH, for example 0.1.1"
+              exit 1
+            fi
+          fi
+          echo "ZUNO_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
+          echo "VITE_APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
+      - name: Type-check
+        run: npm run lint
+      - name: Set native desktop package version
+        run: node scripts/set-native-version.mjs
+      - name: Generate ZUNO desktop icons
+        run: npx tauri icon public/zuno-icon.svg --output src-tauri/icons
+      - name: Build desktop installers
+        run: npm run desktop:build
+      - name: Upload desktop installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: src-tauri/target/release/bundle/
+          if-no-files-found: error
+          retention-days: 90
+
+  publish:
+    name: Publish signed ZUNO release
+    if: ${{ always() && !cancelled() && needs.android.result == 'success' && needs.desktop.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+    needs:
+      - auto-version
+      - android
+      - desktop
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Android and desktop packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: zuno-*
+          path: release-assets
+          merge-multiple: true
+      - name: List release files
+        run: find release-assets -type f -maxdepth 5 -print
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && format('v{0}', needs.auto-version.outputs.version) || (startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', inputs.release_version)) }}
+          target_commitish: ${{ github.sha }}
+          name: ZUNO Music ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && format('v{0}', needs.auto-version.outputs.version) || (startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', inputs.release_version)) }}
+          generate_release_notes: true
+          make_latest: true
+          files: release-assets/**/*
