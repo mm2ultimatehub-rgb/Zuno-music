@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArtworkImage } from './components/ArtworkImage';
 import {
   CheckCircle2,
   Compass,
@@ -718,7 +719,7 @@ export default function App() {
 
   // Send real track metadata and transport actions to supported system media controls.
   useEffect(() => {
-    if (!activeTrack.id || !('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    if (selectedYoutubeVideo || !activeTrack.id || !('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
     const session = navigator.mediaSession;
     const artworkUrl = new URL(activeTrack.coverUrl, window.location.href).href;
 
@@ -780,7 +781,7 @@ export default function App() {
         // Unsupported action handlers are ignored.
       }
     };
-  }, [activeTrack, handleSkip, handleTogglePlay, isPlaying]);
+  }, [activeTrack, handleSkip, handleTogglePlay, isPlaying, selectedYoutubeVideo?.videoId]);
 
 
 
@@ -1145,7 +1146,7 @@ export default function App() {
                       darkMode ? 'hover:bg-white/[0.05]' : 'hover:bg-slate-100'
                     }`}
                   >
-                    <img
+                    <ArtworkImage
                       src={pl.coverUrl}
                       alt={pl.name}
                       referrerPolicy="no-referrer"
@@ -1294,7 +1295,13 @@ export default function App() {
                 youtubeLoading={youtubeLoading}
                 youtubeError={youtubeError}
                 youtubeNeedsSubmit={searchQuery.trim() !== youtubeSearchQuery.trim()}
-                onOpenYouTube={setSelectedYoutubeVideo}
+                onOpenYouTube={(video) => {
+                  if (isPlaying) {
+                    zunoAudioEngine.pause();
+                    setIsPlaying(false);
+                  }
+                  setSelectedYoutubeVideo(video);
+                }}
                 favoriteIds={favorites}
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
@@ -1457,7 +1464,7 @@ export default function App() {
               aria-label={`Tam ekran oynatıcıyı aç: ${activeTrack.title}`}
               className="group relative block w-full aspect-square overflow-hidden rounded-3xl bg-slate-900 shadow-xl"
             >
-              <img
+              <ArtworkImage
                 src={activeTrack.coverUrl}
                 alt={activeTrack.title}
                 referrerPolicy="no-referrer"
@@ -1575,7 +1582,7 @@ export default function App() {
                   darkMode ? 'hover:bg-white/[0.05]' : 'hover:bg-slate-100'
                 }`}
               >
-                <img
+                <ArtworkImage
                   src={qt.coverUrl}
                   alt={qt.title}
                   referrerPolicy="no-referrer"
@@ -1597,7 +1604,7 @@ export default function App() {
       </div>
 
       {/* Floating mobile playback island */}
-      {!playerFullscreen && activeTrack.id && (
+      {!playerFullscreen && activeTrack.id && !selectedYoutubeVideo && (
         <DynamicIslandPlayer
           track={activeTrack}
           isPlaying={isPlaying}
@@ -1712,7 +1719,7 @@ export default function App() {
 
       <YouTubePlayerModal
         video={selectedYoutubeVideo}
-        onClose={() => setSelectedYoutubeVideo(null)}
+        onStop={() => setSelectedYoutubeVideo(null)}
       />
 
       {/* Album Detail Sheet/Modal */}

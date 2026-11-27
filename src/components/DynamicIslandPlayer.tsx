@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArtworkImage } from './ArtworkImage';
 import { Pause, Play, SkipForward } from 'lucide-react';
 import type { Track } from '../types/music';
 
@@ -45,7 +46,7 @@ export const DynamicIslandPlayer: React.FC<DynamicIslandPlayerProps> = ({
           aria-label={track.title + ' oynatıcısını aç'}
           className="relative flex min-w-0 flex-1 items-center gap-2.5 text-left"
         >
-          <img
+          <ArtworkImage
             src={track.coverUrl}
             alt=""
             referrerPolicy="no-referrer"
