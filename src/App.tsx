@@ -656,12 +656,39 @@ export default function App() {
 
   const handlePlayTrack = useCallback(
     (track: Track, contextIds?: string[]) => {
-      if (!track.audioObjectUrl && !track.audioUrl) {
-        showToast('Bu parça için henüz gerçek ses kaynağı bağlı değil. Kendi ses dosyanı kütüphaneye ekleyebilirsin.');
+      if (track.provider === 'youtube-music' && track.providerTrackId) {
+        if (isPlaying) {
+          zunoAudioEngine.pause();
+          setIsPlaying(false);
+        }
+        const requestedIds = contextIds?.length
+          ? new Set(contextIds)
+          : new Set(youtubeMusicTracks.map((item) => item.id));
+        const videoQueue = allTracks.filter((item) =>
+          requestedIds.has(item.id) && item.provider === 'youtube-music' && Boolean(item.providerTrackId)
+        );
+        if (!videoQueue.some((item) => item.id === track.id)) videoQueue.unshift(track);
+        setYoutubeMusicQueue(videoQueue);
+        setYoutubeMusicQueueIndex(Math.max(0, videoQueue.findIndex((item) => item.id === track.id)));
+        setActiveTrackId('');
+        setCurrentTimeSec(0);
+        setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
         return;
       }
-      if (contextIds && contextIds.length > 0) {
-        setQueue(contextIds);
+      if (!track.audioObjectUrl && !track.audioUrl) {
+        showToast('Bu parça için oynatılabilir ses kaynağı bulunamadı. YouTube Music parçalarını YouTube oynatıcısıyla aç.');
+        return;
+      }
+      setSelectedYoutubeVideo(null);
+      setYoutubeMusicQueue([]);
+      const playableContextIds = contextIds?.filter((id) => {
+        const item = allTracks.find((candidate) => candidate.id === id);
+        return Boolean(item?.audioObjectUrl || item?.audioUrl);
+      });
+      if (playableContextIds && playableContextIds.length > 0) {
+        setQueue(playableContextIds);
+      } else if (contextIds && contextIds.length > 0) {
+        setQueue([track.id]);
       } else {
         const playableIds = allTracks
           .filter((item) => item.audioObjectUrl || item.audioUrl)
@@ -690,7 +717,7 @@ export default function App() {
       if (!started) return;
       setRecentIds((prev) => [track.id, ...prev.filter((id) => id !== track.id)].slice(0, 12));
     },
-    [activeTrackId, allTracks, currentTimeSec, isPlaying, queue, showToast]
+    [activeTrackId, allTracks, currentTimeSec, isPlaying, queue, showToast, youtubeMusicTracks]
   );
 
   const handleTogglePlay = useCallback(() => {
@@ -870,6 +897,10 @@ export default function App() {
 
   const handleDownloadTrack = useCallback(
     async (track: Track) => {
+      if (track.provider === 'youtube-music') {
+        showToast('YouTube Music parçaları resmî YouTube oynatıcısında açılır; bu kaynak için indirme desteklenmiyor.');
+        return;
+      }
       const existing = downloads.find((item) => item.trackId === track.id);
       if (existing?.status === 'completed') {
         showToast(`${track.title} çevrimdışı kullanıma hazır`);
