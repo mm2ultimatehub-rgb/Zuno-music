@@ -2,7 +2,6 @@ import React, { useRef, useState } from 'react';
 import {
   Check,
   Edit3,
-  FolderOpen,
   Heart,
   LayoutGrid,
   List,
@@ -26,7 +25,6 @@ import type {
 } from '../types/music';
 import { formatDuration, formatFileSize, sortTracks } from '../utils/zunoLogic';
 import { FlowingTabs } from './fluid/FlowingTabs';
-import { MorphingLoader } from './fluid/MorphingLoader';
 
 interface LibraryViewProps {
   tracks: Track[];
@@ -94,7 +92,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [scanningLocal, setScanningLocal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,13 +123,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const cardSurface = darkMode
     ? 'border-white/[0.06] bg-[#11151e] hover:bg-[#171d29]'
     : 'border-slate-200 bg-white hover:bg-slate-50 shadow-sm';
-
-  const handleScanLocal = () => {
-    setScanningLocal(true);
-    window.setTimeout(() => {
-      setScanningLocal(false);
-    }, 1100);
-  };
 
   const renderTrackCollection = (items: Track[], emptyMsg: string, playlistOwnerId?: string) => {
     if (items.length === 0) {
@@ -541,7 +531,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       )}
 
       {section === 'albums' && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+        <div className="space-y-3">
+          {albums.filter((album) => !filterQ || album.title.toLocaleLowerCase('tr-TR').includes(filterQ)).length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-current/15 py-10 text-center text-sm opacity-60">
+              Henüz gerçek albüm kaydı yok. İçe aktardığın müzikler burada koleksiyon olarak görünecek.
+            </div>
+          ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
           {albums
             .filter((a) => !filterQ || a.title.toLocaleLowerCase('tr-TR').includes(filterQ))
             .map((album) => (
@@ -563,11 +559,19 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 </span>
               </button>
             ))}
+          </div>
+          )}
         </div>
       )}
 
       {section === 'artists' && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <div className="space-y-3">
+          {artists.filter((artist) => !filterQ || artist.name.toLocaleLowerCase('tr-TR').includes(filterQ)).length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-current/15 py-10 text-center text-sm opacity-60">
+              Müzik kaynağından henüz sanatçı bilgisi alınmadı.
+            </div>
+          ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
           {artists
             .filter((a) => !filterQ || a.name.toLocaleLowerCase('tr-TR').includes(filterQ))
             .map((artist) => (
@@ -585,6 +589,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 <span className="truncate w-full text-xs opacity-65">{artist.monthlyListeners}</span>
               </div>
             ))}
+          </div>
+          )}
         </div>
       )}
 
@@ -598,7 +604,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             <div className="space-y-0.5">
               <div className="text-sm font-semibold">Cihazdaki Ses Dosyaları</div>
               <div className="text-xs opacity-65">
-                MP3, FLAC, WAV ve M4A dosyalarını tara veya cihazından içe aktar.
+                MP3, FLAC, WAV ve M4A dosyalarını cihazından seçerek kalıcı kütüphanene ekle.
               </div>
             </div>
 
@@ -618,16 +624,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               />
               <button
                 type="button"
-                onClick={handleScanLocal}
-                className={`inline-flex h-10 items-center gap-2 rounded-full border px-3.5 text-xs font-medium ${
-                  darkMode ? 'border-white/15 hover:bg-white/10' : 'border-slate-300 hover:bg-slate-100'
-                }`}
-              >
-                <FolderOpen className="h-4 w-4" />
-                <span>Klasörleri Tara</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-xs font-semibold"
                 style={{ backgroundColor: accentColor, color: '#0b0e16' }}
@@ -638,16 +634,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             </div>
           </div>
 
-          {scanningLocal ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-10">
-              <MorphingLoader size={64} accentColor={accentColor} label="Yerel müzikler taranıyor" />
-              <span className="text-xs font-medium tracking-wider uppercase opacity-70">
-                Ses dosyaları taranıyor...
-              </span>
-            </div>
-          ) : (
-            renderTrackCollection(filteredLocalTracks, 'Cihazda yerel ses dosyası bulunamadı.')
-          )}
+          {renderTrackCollection(filteredLocalTracks, 'Cihazda yerel ses dosyası bulunamadı.')}
         </div>
       )}
     </div>
