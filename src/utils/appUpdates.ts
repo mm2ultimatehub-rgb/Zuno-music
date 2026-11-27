@@ -18,6 +18,9 @@ function getPlatformDownload(assets: ReleaseAsset[]): { url: string; label: stri
   const platform = typeof navigator === 'undefined'
     ? ''
     : `${navigator.userAgent} ${navigator.platform}`.toLowerCase();
+  const isIPad = typeof navigator !== 'undefined'
+    && (/ipad/.test(platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+  if (isIPad) return null;
 
   const choose = (extensions: string[], label: string) => {
     const asset = assets.find((item) =>
