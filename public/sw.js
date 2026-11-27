@@ -36,6 +36,16 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
+    const scopePath = SCOPE_URL.pathname;
+    const isAppShellNavigation =
+      url.pathname === scopePath ||
+      url.pathname === scopedUrl('./index.html').replace(SCOPE_URL.origin, '');
+
+    if (!isAppShellNavigation) {
+      event.respondWith(fetch(request));
+      return;
+    }
+
     event.respondWith(
       fetch(request)
         .then((response) => {
