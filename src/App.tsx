@@ -27,7 +27,6 @@ import {
   COVER_PRISM,
   COVER_SUBZERO,
   DEFAULT_SETTINGS,
-  INITIAL_PLAYLISTS,
   ZUNO_ALBUMS,
   ZUNO_ARTISTS,
   ZUNO_TRACKS,
@@ -67,14 +66,18 @@ function loadInitialState(): PersistedState {
       const parsed = JSON.parse(raw) as Partial<PersistedState>;
       return {
         settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
-        favorites: Array.isArray(parsed.favorites) ? parsed.favorites : ['tr-1', 'tr-4', 'tr-5'],
-        recentIds: Array.isArray(parsed.recentIds) ? parsed.recentIds : ['tr-1', 'tr-2', 'tr-3', 'tr-5'],
-        playlists: Array.isArray(parsed.playlists) ? parsed.playlists : INITIAL_PLAYLISTS,
+        favorites: Array.isArray(parsed.favorites)
+          ? parsed.favorites.filter((id) => !/^tr-\\d+$/.test(id))
+          : [],
+        recentIds: Array.isArray(parsed.recentIds)
+          ? parsed.recentIds.filter((id) => !/^tr-\\d+$/.test(id))
+          : [],
+        playlists: Array.isArray(parsed.playlists)
+          ? parsed.playlists.filter((playlist) => playlist.isUserCreated || playlist.trackIds.some((id) => !/^tr-\\d+$/.test(id)))
+          : [],
         // Older releases stored simulated download progress; rebuild this list from real IndexedDB files.
         downloads: [],
-        searchHistory: Array.isArray(parsed.searchHistory)
-          ? parsed.searchHistory
-          : ['Mert Aras', 'Nocturne', 'Ambient'],
+        searchHistory: Array.isArray(parsed.searchHistory) ? parsed.searchHistory : [],
       };
     }
   } catch {
@@ -82,11 +85,11 @@ function loadInitialState(): PersistedState {
   }
   return {
     settings: DEFAULT_SETTINGS,
-    favorites: ['tr-1', 'tr-4', 'tr-5'],
-    recentIds: ['tr-1', 'tr-2', 'tr-3', 'tr-5'],
-    playlists: INITIAL_PLAYLISTS,
+    favorites: [],
+    recentIds: [],
+    playlists: [],
     downloads: [],
-    searchHistory: ['Mert Aras', 'Nocturne', 'Ambient'],
+    searchHistory: [],
   };
 }
 
