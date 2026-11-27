@@ -45,6 +45,10 @@ export interface Track {
   audioObjectUrl?: string;
   audioFileId?: string;
   audioUrl?: string;
+  downloadUrl?: string;
+  provider?: 'audius';
+  providerTrackId?: string;
+  downloadable?: boolean;
   year?: number;
 }
 
