@@ -39,7 +39,7 @@ type RawMusicItem = {
   thumbnail?: unknown;
   endpoint?: { payload?: { browseId?: string; videoId?: string } };
   navigationEndpoint?: unknown;
-  flex_columns?: Array<{ title?: { toString(): string; runs?: Array<{ text?: string; endpoint?: unknown }> } }>;
+  flex_columns?: Array<{ title?: { toString(): string; runs?: Array<{ text?: string; endpoint?: unknown; navigationEndpoint?: unknown }> } }>;
   subscribers?: string;
   subscriber_count?: string;
   year?: string;
@@ -239,9 +239,10 @@ function bestArtwork(item: RawMusicItem): string {
 }
 
 function artistName(item: RawMusicItem): string {
-  const names = item.artists?.map((artist) => artist.name).filter(Boolean)
-    || item.authors?.map((artist) => artist.name).filter(Boolean);
-  if (names?.length) return names.join(', ');
+  const artistNames = item.artists?.map((artist) => artist.name).filter((name): name is string => Boolean(name)) || [];
+  const authorNames = item.authors?.map((artist) => artist.name).filter((name): name is string => Boolean(name)) || [];
+  if (artistNames.length) return artistNames.join(', ');
+  if (authorNames.length) return authorNames.join(', ');
   if (item.author?.name) return item.author.name;
   const subtitle = itemText(item.subtitle);
   if (subtitle) return subtitle.split(/\s*[•·|]\s*/)[0]?.trim() || subtitle;
@@ -283,7 +284,8 @@ function albumInfo(item: RawMusicItem): { title: string; id: string } {
   for (const column of item.flex_columns?.slice(1) || []) {
     const title = itemText(column.title);
     const runs = column.title?.runs || [];
-    const browseId = runs.map((run) => findBrowseId(run.endpoint))
+    const browseId = runs
+      .map((run) => findBrowseId(run.endpoint) || findBrowseId(run.navigationEndpoint))
       .find((id) => id.startsWith('MPRE')) || '';
     if (browseId && title) return { title, id: browseId };
   }
