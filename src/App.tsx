@@ -505,6 +505,15 @@ export default function App() {
         showToast(`${track.title} çevrimdışı kullanıma hazır`);
         return;
       }
+      if (existing?.status === 'downloading') {
+        const runningController = downloadControllersRef.current.get(existing.id);
+        if (runningController) {
+          runningController.abort();
+        } else {
+          showToast('İndirme işlemi zaten çalışıyor.');
+        }
+        return;
+      }
       if (track.provider === 'audius' && !track.downloadable) {
         showToast('Bu parçanın sanatçısı indirmeye izin vermiyor. Çevrimiçi dinleyebilirsin.');
         return;
