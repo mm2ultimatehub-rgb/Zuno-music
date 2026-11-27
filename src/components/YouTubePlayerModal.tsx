@@ -4,13 +4,12 @@ import type { YouTubeVideo } from '../utils/youtubeApi';
 
 interface YouTubePlayerModalProps {
   video: YouTubeVideo | null;
-  onClose: () => void;
   onStop: () => void;
 }
 
 const YOUTUBE_ORIGIN = 'https://www.youtube-nocookie.com';
 
-export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, onClose, onStop }) => {
+export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, onStop }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
