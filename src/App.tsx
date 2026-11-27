@@ -1355,22 +1355,14 @@ export default function App() {
                 artists={libraryArtists}
                 playlists={playlists}
                 downloads={downloads}
-                remoteLoading={audiusLoading}
-                remoteError={audiusError}
-                youtubeVideos={youtubeVideos}
-                youtubeLoading={youtubeLoading}
-                youtubeError={youtubeError}
-                youtubeNeedsSubmit={searchQuery.trim() !== youtubeSearchQuery.trim()}
-                onOpenYouTube={(video) => {
-                  if (isPlaying) {
-                    zunoAudioEngine.pause();
-                    setIsPlaying(false);
-                  }
-                  setSelectedYoutubeVideo(video);
-                }}
+                remoteLoading={audiusLoading || youtubeMusicLoading}
+                remoteError={youtubeMusicError || audiusError}
                 favoriteIds={favorites}
                 query={searchQuery}
-                onQueryChange={setSearchQuery}
+                onQueryChange={(query) => {
+                  setSearchQuery(query);
+                  if (!query.trim()) setYoutubeSearchQuery('');
+                }}
                 category={searchCategory}
                 onCategoryChange={setSearchCategory}
                 searchHistory={searchHistory}
@@ -1380,9 +1372,7 @@ export default function App() {
                   setSearchHistory((prev) =>
                     [trimmed, ...prev.filter((item) => item !== trimmed)].slice(0, 8)
                   );
-                  setYoutubeSearchQuery(
-                    searchCategory === 'all' || searchCategory === 'songs' || searchCategory === 'videos' ? trimmed : ''
-                  );
+                  setYoutubeSearchQuery(searchCategory === 'podcasts' ? '' : trimmed);
                 }}
                 onClearHistory={() => setSearchHistory([])}
                 activeTrackId={activeTrack.id}
@@ -1710,7 +1700,7 @@ export default function App() {
       </div>
 
       {/* Tablet / Desktop medium MiniPlayer bar (lg..xl where right sidebar isn't shown) */}
-      {activeTrack.id && <div className="hidden lg:block xl:hidden fixed bottom-4 right-6 z-30 w-96">
+      {activeTrack.id && !selectedYoutubeVideo && <div className="hidden lg:block xl:hidden fixed bottom-4 right-6 z-30 w-96">
         <MiniPlayer
           track={activeTrack}
           prevTrack={prevTrack}
@@ -1785,7 +1775,22 @@ export default function App() {
 
       <YouTubePlayerModal
         video={selectedYoutubeVideo}
-        onStop={() => setSelectedYoutubeVideo(null)}
+        onStop={() => {
+          setSelectedYoutubeVideo(null);
+          setYoutubeMusicQueue([]);
+        }}
+        onPrevious={youtubeMusicQueue.length > 1 ? () => {
+          const index = (youtubeMusicQueueIndex - 1 + youtubeMusicQueue.length) % youtubeMusicQueue.length;
+          const track = youtubeMusicQueue[index];
+          setYoutubeMusicQueueIndex(index);
+          setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
+        } : undefined}
+        onNext={youtubeMusicQueue.length > 1 ? () => {
+          const index = (youtubeMusicQueueIndex + 1) % youtubeMusicQueue.length;
+          const track = youtubeMusicQueue[index];
+          setYoutubeMusicQueueIndex(index);
+          setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
+        } : undefined}
       />
 
       {/* Album Detail Sheet/Modal */}
