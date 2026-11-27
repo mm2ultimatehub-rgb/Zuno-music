@@ -1,3 +1,5 @@
+import type { Track } from '../types/music';
+
 export interface StoredAudioFile {
   id: string;
   name: string;
@@ -6,6 +8,7 @@ export interface StoredAudioFile {
   lastModified: number;
   addedAt: number;
   sourceTrackId?: string;
+  trackMetadata?: Track;
   blob: Blob;
 }
 
@@ -37,7 +40,8 @@ export async function saveAudioFile(
   id: string,
   file: File | Blob,
   name?: string,
-  sourceTrackId?: string
+  sourceTrackId?: string,
+  trackMetadata?: Track
 ): Promise<void> {
   const database = await openDatabase();
   try {
@@ -51,6 +55,7 @@ export async function saveAudioFile(
         lastModified: file instanceof File ? file.lastModified : Date.now(),
         addedAt: Date.now(),
         sourceTrackId,
+        trackMetadata,
         blob: file,
       };
       transaction.objectStore(STORE_NAME).put(record);
