@@ -126,7 +126,7 @@ export default function App() {
   const [playbackRate, setPlaybackRate] = useState<number>(1.0);
   const [sleepTimerMin, setSleepTimerMin] = useState<number | null>(null);
   const [sleepRemainingSec, setSleepRemainingSec] = useState<number | null>(null);
-  const [cacheMb, setCacheMb] = useState(42.5);
+  const [cacheMb, setCacheMb] = useState(0);
 
   const activeTrack = useMemo(
     () => allTracks.find((t) => t.id === activeTrackId) || allTracks[0],
@@ -564,6 +564,8 @@ export default function App() {
         setActiveTrackId(ZUNO_TRACKS[0].id);
       }
       setLocalTracks((previous) => previous.filter((item) => item.id !== trackId));
+      setDownloads((previous) => previous.filter((item) => item.trackId !== trackId));
+      setQueue((previous) => previous.filter((id) => id !== trackId));
       setFavorites((previous) => previous.filter((id) => id !== trackId));
       setRecentIds((previous) => previous.filter((id) => id !== trackId));
       setPlaylists((previous) => previous.map((playlist) => ({
@@ -592,7 +594,9 @@ export default function App() {
     .filter((t): t is Track => Boolean(t));
 
   const storageUsedMb =
-    cacheMb + downloads.reduce((sum, d) => sum + d.downloadedMb, 0);
+    cacheMb +
+    localTracks.reduce((sum, track) => sum + track.fileSizeMb, 0) +
+    downloads.reduce((sum, item) => sum + item.downloadedMb, 0);
 
   return (
     <div
