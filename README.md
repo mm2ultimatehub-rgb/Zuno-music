@@ -51,7 +51,7 @@ npm run desktop:build
 
 ## İmzalı Android yayınları ve otomatik sürüm üretimi
 
-GitHub Actions, dal/PR değişikliklerinde test amaçlı **debug APK** ve Linux/Windows/macOS masaüstü paketleri üretir. Debug APK mevcut imzalı bir sürümün üzerine güncelleme olarak kurulamaz.
+GitHub Actions, pull request'lerde test amaçlı **debug APK** ve Linux/Windows/macOS masaüstü paketleri üretir. Debug APK mevcut imzalı bir sürümün üzerine güncelleme olarak kurulamaz.
 
 Gerçek, mevcut kurulumun üzerine yüklenebilir Android Release APK ve GitHub Release üretmek için dört imza secret'ı Repository → Settings → Secrets and variables → Actions bölümünde tanımlı olmalıdır:
 
@@ -64,7 +64,7 @@ Gerçek, mevcut kurulumun üzerine yüklenebilir Android Release APK ve GitHub R
 
 İstisnai durumlarda **Actions → ZUNO native app builds → Run workflow** üzerinden `release_version` alanını boş bırakarak test build'i veya `0.1.5` gibi bir sürüm girerek manuel release başlatabilirsin. Aynı keystore ve alias sonraki tüm sürümlerde kullanılmalıdır. İmzalama anahtarını repoya veya uygulama kaynak koduna ekleme.
 
-İmzalama anahtarını repoya veya uygulama kaynak koduna ekleme. Anahtar secret'larından biri eksikse Release işi durur; imzasız APK güncelleme gibi yayımlanmaz.
+Anahtar secret'larından biri eksikse Release işi durur; imzasız APK güncelleme gibi yayımlanmaz.
 
 Her başarılı otomatik veya manuel release GitHub Releases'e imzalı Android APK ve üretilen masaüstü kurulumlarını ekler. Ayarlar ekranı artık sabit bir başarı mesajı göstermez; gerçek en son kararlı GitHub Release sürümünü denetler.
 
