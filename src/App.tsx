@@ -35,7 +35,8 @@ import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
 import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
 import { getTrendingAudiusTracks, searchAudiusTracks } from './utils/audiusApi';
-import { searchYouTubeVideos, type YouTubeVideo } from './utils/youtubeApi';
+import { searchYouTubeMusic, youtubeVideoFromTrack } from './utils/youtubeMusicApi';
+import type { YouTubeVideo } from './utils/youtubeApi';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -136,20 +137,25 @@ export default function App() {
   const [remoteTracks, setRemoteTracks] = useState<Track[]>([]);
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [audiusError, setAudiusError] = useState<string | null>(null);
-  const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState('');
-  const [youtubeLoading, setYoutubeLoading] = useState(false);
-  const [youtubeError, setYoutubeError] = useState<string | null>(null);
+  const [youtubeMusicTracks, setYoutubeMusicTracks] = useState<Track[]>([]);
+  const [youtubeMusicAlbums, setYoutubeMusicAlbums] = useState<Album[]>([]);
+  const [youtubeMusicArtists, setYoutubeMusicArtists] = useState<Artist[]>([]);
+  const [youtubeMusicLoading, setYoutubeMusicLoading] = useState(false);
+  const [youtubeMusicError, setYoutubeMusicError] = useState<string | null>(null);
+  const [youtubeMusicQueue, setYoutubeMusicQueue] = useState<Track[]>([]);
+  const [youtubeMusicQueueIndex, setYoutubeMusicQueueIndex] = useState(0);
   const [selectedYoutubeVideo, setSelectedYoutubeVideo] = useState<YouTubeVideo | null>(null);
   const allTracks = useMemo(() => {
     const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
     const onlineIds = new Set(remoteTracks.map((track) => track.id));
     return [
       ...remoteTracks.map((track) => offlineById.get(track.id) || track),
+      ...youtubeMusicTracks,
       ...localTracks,
       ...offlineCatalogTracks.filter((track) => !onlineIds.has(track.id)),
     ];
-  }, [localTracks, offlineCatalogTracks, remoteTracks]);
+  }, [localTracks, offlineCatalogTracks, remoteTracks, youtubeMusicTracks]);
   const downloadControllersRef = useRef<Map<string, AbortController>>(new Map());
   const handleSkipRef = useRef<(direction: 'next' | 'prev') => void>(() => undefined);
 
@@ -190,33 +196,34 @@ export default function App() {
   const libraryArtists = useMemo(() => {
     const artists = new Map<string, Artist>();
     allTracks
-      .filter((track) => track.audioObjectUrl || track.audioUrl)
-      .forEach((track) => {
+      .filter((track) => track.audioObjectUrl || track.audioUrl || track.provider === 'youtube-music')
+      .forEach((track) => {}
         if (!artists.has(track.artist)) {
           artists.set(track.artist, {
             id: `artist-${track.provider || 'local'}-${track.artist.toLocaleLowerCase('tr-TR').replace(/[^a-z0-9]+/g, '-')}`,
             name: track.artist,
-            genre: track.provider === 'audius' ? 'Audius' : 'Yerel müzik',
-            monthlyListeners: track.provider === 'audius' ? 'Audius kataloğu' : 'Cihazındaki müzik',
+            genre: track.provider === 'audius' ? 'Audius' : track.provider === 'youtube-music' ? 'YouTube Music' : 'Yerel müzik',
+            monthlyListeners: track.provider === 'audius' ? 'Audius kataloğu' : track.provider === 'youtube-music' ? 'YouTube Music' : 'Cihazındaki müzik',
             coverUrl: track.coverUrl,
           });
         }
       });
+    youtubeMusicArtists.forEach((artist) => artists.set(artist.id, artist));
     return [...artists.values()];
-  }, [allTracks]);
+  }, [allTracks, youtubeMusicArtists]);
 
   const libraryAlbums = useMemo(() => {
     const groups = new Map<string, Track[]>();
     allTracks
-      .filter((track) => track.audioObjectUrl || track.audioUrl)
-      .forEach((track) => {
+      .filter((track) => track.audioObjectUrl || track.audioUrl || track.provider === 'youtube-music')
+      .forEach((track) => {}
         const key = track.albumId || track.id;
         const group = groups.get(key) || [];
         group.push(track);
         groups.set(key, group);
       });
 
-    return [...groups.entries()]
+    const derivedAlbums = [...groups.entries()]
       .filter(([, group]) => group.length > 1 || group.some((track) => track.isLocal))
       .map(([id, group]) => {
         const first = group[0];
@@ -230,7 +237,10 @@ export default function App() {
           trackIds: group.map((track) => track.id),
         };
       });
-  }, [allTracks]);
+    const albumMap = new Map<string, Album>();
+    [...youtubeMusicAlbums, ...derivedAlbums].forEach((album) => albumMap.set(album.id, album));
+    return [...albumMap.values()];
+  }, [allTracks, youtubeMusicAlbums]);
 
   const prevTrack = useMemo(() => {
     const prevId = getNextTrackId(queue, activeTrack.id, repeat, false, 'prev');
