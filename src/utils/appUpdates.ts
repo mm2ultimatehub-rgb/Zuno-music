@@ -5,6 +5,39 @@ export interface ZunoReleaseCheck {
   releaseUrl: string;
   releaseNotes: string;
   apkDownloadUrl: string | null;
+  platformDownloadUrl: string | null;
+  platformDownloadLabel: string | null;
+}
+
+interface ReleaseAsset {
+  name?: string;
+  browser_download_url?: string;
+}
+
+function getPlatformDownload(assets: ReleaseAsset[]): { url: string; label: string } | null {
+  const platform = typeof navigator === 'undefined'
+    ? ''
+    : `${navigator.userAgent} ${navigator.platform}`.toLowerCase();
+
+  const choose = (extensions: string[], label: string) => {
+    const asset = assets.find((item) =>
+      extensions.some((extension) => item.name?.toLowerCase().endsWith(extension))
+      && Boolean(item.browser_download_url)
+    );
+    return asset?.browser_download_url ? { url: asset.browser_download_url, label } : null;
+  };
+
+  if (/android/.test(platform)) return choose(['.apk'], 'Android APK indir');
+  if (/windows|win32/.test(platform)) {
+    return choose(['.exe', '.msi'], 'Windows güncellemesini indir');
+  }
+  if (/macintosh|mac os|macintel|darwin/.test(platform)) {
+    return choose(['.dmg', '.pkg'], 'macOS güncellemesini indir');
+  }
+  if (/linux|x11/.test(platform)) {
+    return choose(['.appimage', '.deb', '.rpm'], 'Linux güncellemesini indir');
+  }
+  return null;
 }
 
 const REPOSITORY = 'mm2ultimatehub-rgb/Zuno-music';
@@ -48,7 +81,7 @@ export async function checkForZunoUpdate(): Promise<ZunoReleaseCheck> {
     tag_name?: string;
     html_url?: string;
     body?: string;
-    assets?: Array<{ name?: string; browser_download_url?: string }>;
+    assets?: ReleaseAsset[];
     draft?: boolean;
     prerelease?: boolean;
   };
@@ -58,7 +91,9 @@ export async function checkForZunoUpdate(): Promise<ZunoReleaseCheck> {
     throw new Error('Yayımlanmış kararlı bir sürüm bulunamadı.');
   }
 
-  const apk = (release.assets || []).find((asset) => asset.name?.toLowerCase().endsWith('.apk'));
+  const assets = release.assets || [];
+  const apk = assets.find((asset) => asset.name?.toLowerCase().endsWith('.apk') && asset.browser_download_url);
+  const platformDownload = getPlatformDownload(assets);
   return {
     currentVersion,
     latestVersion,
@@ -66,5 +101,7 @@ export async function checkForZunoUpdate(): Promise<ZunoReleaseCheck> {
     releaseUrl: release.html_url || `https://github.com/${REPOSITORY}/releases`,
     releaseNotes: release.body || '',
     apkDownloadUrl: apk?.browser_download_url || null,
+    platformDownloadUrl: platformDownload?.url || null,
+    platformDownloadLabel: platformDownload?.label || null,
   };
 }
