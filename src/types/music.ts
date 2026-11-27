@@ -46,7 +46,7 @@ export interface Track {
   audioFileId?: string;
   audioUrl?: string;
   downloadUrl?: string;
-  provider?: 'audius';
+  provider?: 'audius' | 'youtube-music';
   providerTrackId?: string;
   downloadable?: boolean;
   year?: number;

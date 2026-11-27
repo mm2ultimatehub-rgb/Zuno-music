@@ -35,7 +35,7 @@ import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
 import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
 import { getTrendingAudiusTracks, searchAudiusTracks } from './utils/audiusApi';
-import { searchYouTubeVideos, type YouTubeVideo } from './utils/youtubeApi';
+import { searchYouTubeMusic, youtubeVideoFromTrack, type YouTubeVideo } from './utils/youtubeMusicApi';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -56,6 +56,19 @@ import { isSupabaseConfigured, supabase } from './utils/supabaseClient';
 import type { RealtimeChannel, User } from '@supabase/supabase-js';
 
 const STORAGE_KEY = 'zuno-music-state-v1';
+
+function mergeCatalogItems<T extends { id: string }>(
+  incoming: T[],
+  previous: T[],
+  limit = 200,
+): T[] {
+  const merged = new Map<string, T>();
+  incoming.forEach((item) => merged.set(item.id, item));
+  previous.forEach((item) => {
+    if (!merged.has(item.id)) merged.set(item.id, item);
+  });
+  return [...merged.values()].slice(0, limit);
+}
 
 const EMPTY_TRACK: Track = {
   id: '',
@@ -136,20 +149,25 @@ export default function App() {
   const [remoteTracks, setRemoteTracks] = useState<Track[]>([]);
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [audiusError, setAudiusError] = useState<string | null>(null);
-  const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState('');
-  const [youtubeLoading, setYoutubeLoading] = useState(false);
-  const [youtubeError, setYoutubeError] = useState<string | null>(null);
+  const [youtubeMusicTracks, setYoutubeMusicTracks] = useState<Track[]>([]);
+  const [youtubeMusicAlbums, setYoutubeMusicAlbums] = useState<Album[]>([]);
+  const [youtubeMusicArtists, setYoutubeMusicArtists] = useState<Artist[]>([]);
+  const [youtubeMusicLoading, setYoutubeMusicLoading] = useState(false);
+  const [youtubeMusicError, setYoutubeMusicError] = useState<string | null>(null);
+  const [youtubeMusicQueue, setYoutubeMusicQueue] = useState<Track[]>([]);
+  const [youtubeMusicQueueIndex, setYoutubeMusicQueueIndex] = useState(0);
   const [selectedYoutubeVideo, setSelectedYoutubeVideo] = useState<YouTubeVideo | null>(null);
   const allTracks = useMemo(() => {
     const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
     const onlineIds = new Set(remoteTracks.map((track) => track.id));
     return [
+      ...youtubeMusicTracks,
       ...remoteTracks.map((track) => offlineById.get(track.id) || track),
       ...localTracks,
       ...offlineCatalogTracks.filter((track) => !onlineIds.has(track.id)),
     ];
-  }, [localTracks, offlineCatalogTracks, remoteTracks]);
+  }, [localTracks, offlineCatalogTracks, remoteTracks, youtubeMusicTracks]);
   const downloadControllersRef = useRef<Map<string, AbortController>>(new Map());
   const handleSkipRef = useRef<(direction: 'next' | 'prev') => void>(() => undefined);
 
@@ -190,25 +208,26 @@ export default function App() {
   const libraryArtists = useMemo(() => {
     const artists = new Map<string, Artist>();
     allTracks
-      .filter((track) => track.audioObjectUrl || track.audioUrl)
+      .filter((track) => track.provider !== 'youtube-music' && (track.audioObjectUrl || track.audioUrl))
       .forEach((track) => {
         if (!artists.has(track.artist)) {
           artists.set(track.artist, {
             id: `artist-${track.provider || 'local'}-${track.artist.toLocaleLowerCase('tr-TR').replace(/[^a-z0-9]+/g, '-')}`,
             name: track.artist,
-            genre: track.provider === 'audius' ? 'Audius' : 'Yerel müzik',
-            monthlyListeners: track.provider === 'audius' ? 'Audius kataloğu' : 'Cihazındaki müzik',
+            genre: track.provider === 'audius' ? 'Audius' : track.provider === 'youtube-music' ? 'YouTube Music' : 'Yerel müzik',
+            monthlyListeners: track.provider === 'audius' ? 'Audius kataloğu' : track.provider === 'youtube-music' ? 'YouTube Music' : 'Cihazındaki müzik',
             coverUrl: track.coverUrl,
           });
         }
       });
+    youtubeMusicArtists.forEach((artist) => artists.set(artist.id, artist));
     return [...artists.values()];
-  }, [allTracks]);
+  }, [allTracks, youtubeMusicArtists]);
 
   const libraryAlbums = useMemo(() => {
     const groups = new Map<string, Track[]>();
     allTracks
-      .filter((track) => track.audioObjectUrl || track.audioUrl)
+      .filter((track) => track.audioObjectUrl || track.audioUrl || track.provider === 'youtube-music')
       .forEach((track) => {
         const key = track.albumId || track.id;
         const group = groups.get(key) || [];
@@ -216,7 +235,7 @@ export default function App() {
         groups.set(key, group);
       });
 
-    return [...groups.entries()]
+    const derivedAlbums = [...groups.entries()]
       .filter(([, group]) => group.length > 1 || group.some((track) => track.isLocal))
       .map(([id, group]) => {
         const first = group[0];
@@ -230,7 +249,10 @@ export default function App() {
           trackIds: group.map((track) => track.id),
         };
       });
-  }, [allTracks]);
+    const albumMap = new Map<string, Album>();
+    [...derivedAlbums, ...youtubeMusicAlbums].forEach((album) => albumMap.set(album.id, album));
+    return [...albumMap.values()];
+  }, [allTracks, youtubeMusicAlbums]);
 
   const prevTrack = useMemo(() => {
     const prevId = getNextTrackId(queue, activeTrack.id, repeat, false, 'prev');
@@ -515,31 +537,60 @@ export default function App() {
     };
   }, [activeTab, searchQuery]);
 
-  // Search YouTube only while Discover has a real query; debounce and cancel stale requests.
+  // Home starts with real public YouTube Music catalogue results, without requiring a key.
+  useEffect(() => {
+    if (activeTab !== 'home' || youtubeMusicTracks.length > 0) return;
+    const controller = new AbortController();
+    setYoutubeMusicLoading(true);
+    setYoutubeMusicError(null);
+    void searchYouTubeMusic('popular songs', { signal: controller.signal })
+      .then((results) => {
+        if (controller.signal.aborted) return;
+        setYoutubeMusicTracks((previous) => mergeCatalogItems(results.tracks, previous));
+        setYoutubeMusicAlbums((previous) => mergeCatalogItems(results.albums.map((album) => ({
+          ...album,
+          trackIds: results.tracks.filter((track) => track.albumId === album.id).map((track) => track.id),
+        })), previous));
+        setYoutubeMusicArtists((previous) => mergeCatalogItems(results.artists, previous));
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music kataloğu açılamadı.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setYoutubeMusicLoading(false);
+      });
+    return () => controller.abort();
+  }, [activeTab, youtubeMusicTracks.length]);
+
+  // Search the same YouTube Music catalogue used by Zuno, only after the user submits a query.
   useEffect(() => {
     const query = youtubeSearchQuery.trim();
-    if (activeTab !== 'discover' || query.length < 2) {
-      setYoutubeVideos([]);
-      setYoutubeError(null);
-      setYoutubeLoading(false);
-      return;
-    }
+    if (activeTab !== 'discover' || query.length < 2) return;
 
     const controller = new AbortController();
-    setYoutubeLoading(true);
-    setYoutubeError(null);
+    setYoutubeMusicLoading(true);
+    setYoutubeMusicError(null);
     const timer = window.setTimeout(() => {
-      void searchYouTubeVideos(query, { signal: controller.signal, limit: 20 })
-        .then((videos) => setYoutubeVideos(videos))
+      void searchYouTubeMusic(query, { signal: controller.signal })
+        .then((results) => {
+          if (controller.signal.aborted) return;
+          setYoutubeMusicTracks((previous) => mergeCatalogItems(results.tracks, previous));
+          const albumsWithTracks = results.albums.map((album) => ({
+            ...album,
+            trackIds: results.tracks.filter((track) => track.albumId === album.id).map((track) => track.id),
+          }));
+          setYoutubeMusicAlbums((previous) => mergeCatalogItems(albumsWithTracks, previous));
+          setYoutubeMusicArtists((previous) => mergeCatalogItems(results.artists, previous));
+        })
         .catch((error: unknown) => {
           if (controller.signal.aborted) return;
-          setYoutubeVideos([]);
-          setYoutubeError(error instanceof Error ? error.message : 'YouTube araması başarısız oldu.');
+          setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music araması başarısız oldu.');
         })
         .finally(() => {
-          if (!controller.signal.aborted) setYoutubeLoading(false);
+          if (!controller.signal.aborted) setYoutubeMusicLoading(false);
         });
-    }, 550);
+    }, 150);
 
     return () => {
       window.clearTimeout(timer);
@@ -621,12 +672,39 @@ export default function App() {
 
   const handlePlayTrack = useCallback(
     (track: Track, contextIds?: string[]) => {
-      if (!track.audioObjectUrl && !track.audioUrl) {
-        showToast('Bu parça için henüz gerçek ses kaynağı bağlı değil. Kendi ses dosyanı kütüphaneye ekleyebilirsin.');
+      if (track.provider === 'youtube-music' && track.providerTrackId) {
+        if (isPlaying) {
+          zunoAudioEngine.pause();
+          setIsPlaying(false);
+        }
+        const requestedIds = contextIds?.length
+          ? new Set(contextIds)
+          : new Set(youtubeMusicTracks.map((item) => item.id));
+        const videoQueue = allTracks.filter((item) =>
+          requestedIds.has(item.id) && item.provider === 'youtube-music' && Boolean(item.providerTrackId)
+        );
+        if (!videoQueue.some((item) => item.id === track.id)) videoQueue.unshift(track);
+        setYoutubeMusicQueue(videoQueue);
+        setYoutubeMusicQueueIndex(Math.max(0, videoQueue.findIndex((item) => item.id === track.id)));
+        setActiveTrackId('');
+        setCurrentTimeSec(0);
+        setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
         return;
       }
-      if (contextIds && contextIds.length > 0) {
-        setQueue(contextIds);
+      if (!track.audioObjectUrl && !track.audioUrl) {
+        showToast('Bu parça için oynatılabilir ses kaynağı bulunamadı. YouTube Music parçalarını YouTube oynatıcısıyla aç.');
+        return;
+      }
+      setSelectedYoutubeVideo(null);
+      setYoutubeMusicQueue([]);
+      const playableContextIds = contextIds?.filter((id) => {
+        const item = allTracks.find((candidate) => candidate.id === id);
+        return Boolean(item?.audioObjectUrl || item?.audioUrl);
+      });
+      if (playableContextIds && playableContextIds.length > 0) {
+        setQueue(playableContextIds);
+      } else if (contextIds && contextIds.length > 0) {
+        setQueue([track.id]);
       } else {
         const playableIds = allTracks
           .filter((item) => item.audioObjectUrl || item.audioUrl)
@@ -655,7 +733,7 @@ export default function App() {
       if (!started) return;
       setRecentIds((prev) => [track.id, ...prev.filter((id) => id !== track.id)].slice(0, 12));
     },
-    [activeTrackId, allTracks, currentTimeSec, isPlaying, queue, showToast]
+    [activeTrackId, allTracks, currentTimeSec, isPlaying, queue, showToast, youtubeMusicTracks]
   );
 
   const handleTogglePlay = useCallback(() => {
@@ -835,6 +913,10 @@ export default function App() {
 
   const handleDownloadTrack = useCallback(
     async (track: Track) => {
+      if (track.provider === 'youtube-music') {
+        showToast('YouTube Music parçaları resmî YouTube oynatıcısında açılır; bu kaynak için indirme desteklenmiyor.');
+        return;
+      }
       const existing = downloads.find((item) => item.trackId === track.id);
       if (existing?.status === 'completed') {
         showToast(`${track.title} çevrimdışı kullanıma hazır`);
@@ -1281,6 +1363,8 @@ export default function App() {
                 onOpenDiscover={() => setActiveTab('discover')}
                 accentColor={settings.accentColor}
                 darkMode={darkMode}
+                catalogLoading={youtubeMusicLoading}
+                catalogError={youtubeMusicError}
               />
             ) : activeTab === 'discover' ? (
               <DiscoverView
@@ -1289,22 +1373,14 @@ export default function App() {
                 artists={libraryArtists}
                 playlists={playlists}
                 downloads={downloads}
-                remoteLoading={audiusLoading}
-                remoteError={audiusError}
-                youtubeVideos={youtubeVideos}
-                youtubeLoading={youtubeLoading}
-                youtubeError={youtubeError}
-                youtubeNeedsSubmit={searchQuery.trim() !== youtubeSearchQuery.trim()}
-                onOpenYouTube={(video) => {
-                  if (isPlaying) {
-                    zunoAudioEngine.pause();
-                    setIsPlaying(false);
-                  }
-                  setSelectedYoutubeVideo(video);
-                }}
+                remoteLoading={audiusLoading || youtubeMusicLoading}
+                remoteError={youtubeMusicError || (youtubeMusicTracks.length === 0 ? audiusError : null)}
                 favoriteIds={favorites}
                 query={searchQuery}
-                onQueryChange={setSearchQuery}
+                onQueryChange={(query) => {
+                  setSearchQuery(query);
+                  if (!query.trim()) setYoutubeSearchQuery('');
+                }}
                 category={searchCategory}
                 onCategoryChange={setSearchCategory}
                 searchHistory={searchHistory}
@@ -1314,15 +1390,20 @@ export default function App() {
                   setSearchHistory((prev) =>
                     [trimmed, ...prev.filter((item) => item !== trimmed)].slice(0, 8)
                   );
-                  setYoutubeSearchQuery(
-                    searchCategory === 'all' || searchCategory === 'songs' || searchCategory === 'videos' ? trimmed : ''
-                  );
+                  setYoutubeSearchQuery(searchCategory === 'podcasts' ? '' : trimmed);
                 }}
                 onClearHistory={() => setSearchHistory([])}
                 activeTrackId={activeTrack.id}
                 onPlayTrack={handlePlayTrack}
                 onOpenAlbum={(album) => setSelectedAlbum(album)}
                 onAddToQueue={(track) => {
+                  if (track.provider === 'youtube-music') {
+                    setYoutubeMusicQueue((previous) => (
+                      previous.some((item) => item.id === track.id) ? previous : [...previous, track]
+                    ));
+                    showToast(`YouTube Music sırasına eklendi: ${track.title}`);
+                    return;
+                  }
                   setQueue((prev) => (prev.includes(track.id) ? prev : [...prev, track.id]));
                   showToast(`Sıraya eklendi: ${track.title}`);
                 }}
@@ -1644,7 +1725,7 @@ export default function App() {
       </div>
 
       {/* Tablet / Desktop medium MiniPlayer bar (lg..xl where right sidebar isn't shown) */}
-      {activeTrack.id && <div className="hidden lg:block xl:hidden fixed bottom-4 right-6 z-30 w-96">
+      {activeTrack.id && !selectedYoutubeVideo && <div className="hidden lg:block xl:hidden fixed bottom-4 right-6 z-30 w-96">
         <MiniPlayer
           track={activeTrack}
           prevTrack={prevTrack}
@@ -1719,7 +1800,22 @@ export default function App() {
 
       <YouTubePlayerModal
         video={selectedYoutubeVideo}
-        onStop={() => setSelectedYoutubeVideo(null)}
+        onStop={() => {
+          setSelectedYoutubeVideo(null);
+          setYoutubeMusicQueue([]);
+        }}
+        onPrevious={youtubeMusicQueue.length > 1 ? () => {
+          const index = (youtubeMusicQueueIndex - 1 + youtubeMusicQueue.length) % youtubeMusicQueue.length;
+          const track = youtubeMusicQueue[index];
+          setYoutubeMusicQueueIndex(index);
+          setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
+        } : undefined}
+        onNext={youtubeMusicQueue.length > 1 ? () => {
+          const index = (youtubeMusicQueueIndex + 1) % youtubeMusicQueue.length;
+          const track = youtubeMusicQueue[index];
+          setYoutubeMusicQueueIndex(index);
+          setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
+        } : undefined}
       />
 
       {/* Album Detail Sheet/Modal */}

@@ -30,23 +30,25 @@ Yeni kararlı sürüm GitHub Releases'e yayımlandığında sayfadaki sürüm nu
 
 - Cihazdan ses dosyası içe aktarma, yerel kütüphane ve gerçek ses oynatma
 - Audius canlı kataloğunda arama ve desteklenen parçaları akış olarak oynatma
-- YouTube Data API v3 ile gerçek video araması, küçük resim ve kanal bilgileri; resmî YouTube gömülü oynatıcısında oynatma
-- Gerçek parça seçilene kadar boş/demode oynatıcı gösterimi; sahte katalog, söz ve indirme kayıtları kullanılmaz
+- noFAYZ/zuno projesindeki YouTube Music katalog yaklaşımını uyarlayan gerçek şarkı/albüm/sanatçı araması; kapak ve sanatçı bilgileri YouTube Music'ten alınır
+- Şarkılar, YouTube'un resmî gömülü oynatıcısında ZUNO mini oynatıcı ve önceki/sonraki kuyruk kontrolleriyle açılır
+- Gerçek kaynak verisi olmayan parçalar/sözler/indirmeler sahteymiş gibi gösterilmez
 - Desteklenen tarayıcı/WebView ortamlarında Media Session sistem oynatma bilgileri ve medya tuşları
 - ZUNO hesabı, favoriler, çalma listeleri, ayarlar ve arama geçmişi için Supabase eşitlemesi
 - GitHub Releases üzerinden gerçek sürüm denetimi ve [otomatik çoklu platform indirme sayfası](https://mm2ultimatehub-rgb.github.io/Zuno-music/download.html)
 - Telefon, tablet ve masaüstü ekranlarına uyumlu arayüz
 
-Yerel ses dosyaları ve çevrimdışı indirmeler cihazda tutulur; otomatik olarak buluta yüklenmez. YouTube videoları YouTube'un kendi oynatıcısında açılır; YouTube sesini ayıklama veya YouTube içeriği için çevrimdışı MP3 indirme özelliği sunulmaz.
+Yerel ses dosyaları ve çevrimdışı indirmeler cihazda tutulur; otomatik olarak buluta yüklenmez. YouTube Music katalog araması herkese açık katalog metadatasını yükler; Google hesabının kişisel beğenileri ve özel çalma listeleri henüz bu ilk entegrasyona dahil değildir. YouTube Music parçaları YouTube'un resmî oynatıcısında açılır; YouTube sesini ayıklama veya bu içerikleri MP3 olarak indirme özelliği sunulmaz.
 
-## YouTube aramasını etkinleştirme
+## YouTube Music katalog bağlantısı
 
-1. Google Cloud projesinde **YouTube Data API v3** hizmetini etkinleştir ve bir API anahtarı oluştur.
-2. Anahtarı yalnızca YouTube Data API v3 için kısıtla. Uygulama içinde kullanılacağı için bir backend sırrı gibi gizli kabul edilmemelidir; istemci paketine dahil edilir.
-3. GitHub deposunda **Settings → Secrets and variables → Actions → New repository secret** bölümünden `VITE_YOUTUBE_API_KEY` adında secret oluştur ve anahtarını ekle.
-4. Yerel geliştirmede aynı anahtarı kök dizindeki `.env` dosyasında `VITE_YOUTUBE_API_KEY` olarak tanımla.
+YouTube Music araması, noFAYZ/zuno açık kaynak projesinde kullanılan `youtubei.js` yaklaşımı uyarlanarak sağlanır. Genel şarkı, albüm ve sanatçı araması için Google Cloud API anahtarı gerekmez. Android'de Capacitor yerel HTTP taşıması, masaüstünde yalnızca YouTube Music HTTPS ana bilgisayarlarına izin veren Tauri/Rust proxy'si kullanılır.
 
-YouTube video araması Keşfet ekranında en az iki karakterli bir sorgu girildiğinde yapılır. Google API kotası ve video sahibinin gömme izni arama sonuçlarını etkileyebilir. Oynatma YouTube'un resmî iframe oynatıcısı üzerinden gerçekleşir; reklamlar ve oynatma kontrolleri YouTube tarafından yönetilir.
+Kişisel YouTube Music kitaplığını, beğenileri veya sana özel çalma listelerini eşitlemek farklı bir özelliktir ve Google hesabı bağlantısı gerektirir. Bu özellik genel katalog aramasından ayrı tutulur. Oynatma YouTube'un resmî gömülü oynatıcısında yapılır; reklamlar ve oynatma kontrolleri YouTube tarafından yönetilir.
+
+## Üçüncü taraf kaynak bildirimi
+
+YouTube Music katalog entegrasyonu, [noFAYZ/zuno](https://github.com/noFAYZ/zuno) projesinin açık kaynak yaklaşımından uyarlanmıştır. Kaynak proje Apache License 2.0 ile lisanslıdır; lisans kopyası [licenses/noFAYZ-zuno-APACHE-2.0.txt](licenses/noFAYZ-zuno-APACHE-2.0.txt) dosyasındadır. Uyarlama ve lisans kapsamı için [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasına bak.
 
 ## Geliştirme
 

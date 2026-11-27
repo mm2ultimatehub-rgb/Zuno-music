@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Maximize2, Pause, Play, X, Youtube } from 'lucide-react';
-import type { YouTubeVideo } from '../utils/youtubeApi';
+import { Maximize2, Pause, Play, SkipBack, SkipForward, X, Youtube } from 'lucide-react';
+import type { YouTubeVideo } from '../utils/youtubeMusicApi';
 
 interface YouTubePlayerModalProps {
   video: YouTubeVideo | null;
   onStop: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
 }
 
 const YOUTUBE_ORIGIN = 'https://www.youtube-nocookie.com';
 
-export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, onStop }) => {
+export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, onStop, onPrevious, onNext }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -23,7 +25,6 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
 
   useEffect(() => {
     if (!video) return;
-    setExpanded(true);
     setIsPlaying(true);
 
     const handlePlayerMessage = (event: MessageEvent) => {
@@ -56,6 +57,8 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
       session.playbackState = isPlaying ? 'playing' : 'paused';
       session.setActionHandler('play', () => { sendPlayerCommand('playVideo'); setIsPlaying(true); });
       session.setActionHandler('pause', () => { sendPlayerCommand('pauseVideo'); setIsPlaying(false); });
+      if (onPrevious) session.setActionHandler('previoustrack', onPrevious);
+      if (onNext) session.setActionHandler('nexttrack', onNext);
     } catch {
       // Media Session controls vary between browsers and native WebViews.
     }
@@ -63,11 +66,13 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
       try {
         session.setActionHandler('play', null);
         session.setActionHandler('pause', null);
+        session.setActionHandler('previoustrack', null);
+        session.setActionHandler('nexttrack', null);
       } catch {
         // Ignore unsupported actions.
       }
     };
-  }, [video, isPlaying, sendPlayerCommand]);
+  }, [video, isPlaying, sendPlayerCommand, onPrevious, onNext]);
 
   if (!video) return null;
 
@@ -95,9 +100,19 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
               </span>
               <Youtube className="h-4 w-4 shrink-0 text-red-500" />
             </button>
+            {onPrevious && (
+              <button type="button" onClick={onPrevious} aria-label="Önceki parça" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <SkipBack className="h-4 w-4" />
+              </button>
+            )}
             <button type="button" onClick={togglePlayback} aria-label={isPlaying ? 'YouTube duraklat' : 'YouTube oynat'} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
               {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
             </button>
+            {onNext && (
+              <button type="button" onClick={onNext} aria-label="Sonraki parça" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <SkipForward className="h-4 w-4" />
+              </button>
+            )}
             <button type="button" onClick={onStop} aria-label="YouTube oynatmayı kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
               <X className="h-4 w-4" />
             </button>
@@ -107,12 +122,14 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
 
       <div className={expanded
         ? 'fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/85 p-3 backdrop-blur-xl sm:p-6'
-        : 'pointer-events-none fixed bottom-0 right-0 z-[1] h-px w-px overflow-hidden opacity-0'}
+        : 'pointer-events-auto fixed bottom-24 right-3 z-[45] w-40 overflow-hidden rounded-xl border border-white/15 bg-black shadow-2xl sm:bottom-5 sm:right-5 sm:w-52'}
         role={expanded ? 'dialog' : undefined}
         aria-modal={expanded ? true : undefined}
-        aria-label={expanded ? 'YouTube oynatıcı' : undefined}
+        aria-label={expanded ? 'YouTube oynatıcı' : 'Küçük YouTube oynatıcısı'}
       >
-        <div className={expanded ? 'w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#0d1119] text-white shadow-2xl' : 'h-px w-px'}>
+        <div className={expanded
+          ? 'w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#0d1119] text-white shadow-2xl'
+          : 'aspect-video w-full overflow-hidden bg-black'}>
           {expanded && (
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -132,7 +149,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
               </div>
             </div>
           )}
-          <div className={expanded ? 'aspect-video w-full bg-black' : 'h-px w-px'}>
+          <div className="aspect-video w-full bg-black">
             <iframe
               ref={iframeRef}
               key={video.videoId}
@@ -156,11 +173,31 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
           </div>
           {expanded && (
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
-              <span className="text-xs text-white/55">Resmî YouTube oynatıcısı · Reklamlar ve yayın hakları YouTube tarafından yönetilir</span>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xs text-white/55">Resmî YouTube oynatıcısı · Reklamlar ve yayın hakları YouTube tarafından yönetilir</span>
+                <a
+                  href={'https://music.youtube.com/watch?v=' + encodeURIComponent(video.videoId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-block text-xs font-semibold text-white/80 underline underline-offset-4"
+                >
+                  YouTube Music'te aç
+                </a>
+              </div>
+              {onPrevious && (
+                <button type="button" onClick={onPrevious} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Önceki parça">
+                  <SkipBack className="h-4 w-4" />
+                </button>
+              )}
               <button type="button" onClick={togglePlayback} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/10 px-3 text-xs font-semibold hover:bg-white/15">
                 {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 {isPlaying ? 'Duraklat' : 'Oynat'}
               </button>
+              {onNext && (
+                <button type="button" onClick={onNext} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Sonraki parça">
+                  <SkipForward className="h-4 w-4" />
+                </button>
+              )}
             </div>
           )}
         </div>
