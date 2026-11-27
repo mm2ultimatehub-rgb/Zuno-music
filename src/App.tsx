@@ -46,6 +46,7 @@ import { DownloadsView } from './components/DownloadsView';
 import { FullscreenPlayer, MiniPlayer } from './components/PlayerOverlay';
 import { SettingsView } from './components/SettingsView';
 import { AlbumModal } from './components/AlbumModal';
+import { PwaInstallButton } from './components/PwaInstallButton';
 
 const STORAGE_KEY = 'zuno-music-state-v1';
 
@@ -757,6 +758,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              <PwaInstallButton accentColor={settings.accentColor} darkMode={darkMode} />
               <button
                 type="button"
                 aria-label="Ayarlar"
