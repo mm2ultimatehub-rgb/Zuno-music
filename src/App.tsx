@@ -12,6 +12,7 @@ import {
   Settings,
   SkipBack,
   SkipForward,
+  UserRound,
 } from 'lucide-react';
 import type {
   Album,
@@ -47,6 +48,10 @@ import { FullscreenPlayer, MiniPlayer } from './components/PlayerOverlay';
 import { SettingsView } from './components/SettingsView';
 import { AlbumModal } from './components/AlbumModal';
 import { PwaInstallButton } from './components/PwaInstallButton';
+import { AccountModal } from './components/AccountModal';
+import { buildZunoCloudState, normalizeZunoCloudState, type CloudSyncStatus } from './utils/cloudSync';
+import { isSupabaseConfigured, supabase } from './utils/supabaseClient';
+import type { RealtimeChannel, User } from '@supabase/supabase-js';
 
 const STORAGE_KEY = 'zuno-music-state-v1';
 
@@ -99,6 +104,12 @@ export default function App() {
   const [settings, setSettings] = useState<ZunoSettings>(initial.settings);
   const [activeTab, setActiveTab] = useState<NavTabId>('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [cloudReadyUserId, setCloudReadyUserId] = useState<string | null>(null);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>('disabled');
+  const lastCloudStateJsonRef = useRef('');
   const [playerFullscreen, setPlayerFullscreen] = useState(false);
 
   const [localTracks, setLocalTracks] = useState<Track[]>([]);
@@ -125,6 +136,12 @@ export default function App() {
   const [playlists, setPlaylists] = useState<Playlist[]>(initial.playlists);
   const [downloads, setDownloads] = useState<DownloadItem[]>(initial.downloads);
   const [searchHistory, setSearchHistory] = useState<string[]>(initial.searchHistory);
+  const cloudState = useMemo(
+    () => buildZunoCloudState({ settings, favorites, recentIds, playlists, searchHistory }),
+    [settings, favorites, recentIds, playlists, searchHistory]
+  );
+  const cloudStateRef = useRef(cloudState);
+  cloudStateRef.current = cloudState;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState<SearchCategory>('all');
@@ -252,6 +269,163 @@ export default function App() {
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
   }, []);
+
+
+  // Restore the Supabase session on every platform and keep it updated after login/logout.
+  useEffect(() => {
+    if (!supabase) {
+      setAuthReady(true);
+      setCloudSyncStatus('disabled');
+      return;
+    }
+
+    let active = true;
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) setCloudSyncStatus('error');
+      setAuthUser(data.session?.user || null);
+      setAuthReady(true);
+    }).catch(() => {
+      if (!active) return;
+      setCloudSyncStatus('error');
+      setAuthReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user || null);
+      setAuthReady(true);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Load a user's cloud library before enabling automatic writes, then listen for other devices.
+  useEffect(() => {
+    if (!authReady) return;
+    if (!supabase || !authUser) {
+      setCloudReadyUserId(null);
+      setCloudSyncStatus(isSupabaseConfigured ? 'signed-out' : 'disabled');
+      return;
+    }
+
+    const userId = authUser.id;
+    let cancelled = false;
+    let channel: RealtimeChannel | null = null;
+    setCloudReadyUserId(null);
+    setCloudSyncStatus('syncing');
+
+    const restoreCloudState = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('zuno_user_state')
+          .select('state')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        if (cancelled) return;
+
+        const restored = normalizeZunoCloudState(data?.state);
+        if (restored) {
+          setSettings({ ...DEFAULT_SETTINGS, ...restored.settings });
+          setFavorites(restored.favorites);
+          setRecentIds(restored.recentIds);
+          setPlaylists(restored.playlists);
+          setSearchHistory(restored.searchHistory);
+          lastCloudStateJsonRef.current = JSON.stringify(restored);
+        } else {
+          // First sign-in: seed this account with the library already on this device.
+          const firstState = cloudStateRef.current;
+          const { error: insertError } = await supabase.from('zuno_user_state').upsert({
+            user_id: userId,
+            state: firstState,
+            updated_at: new Date().toISOString(),
+          });
+          if (insertError) throw insertError;
+          lastCloudStateJsonRef.current = JSON.stringify(firstState);
+        }
+
+        if (cancelled) return;
+        setCloudReadyUserId(userId);
+        setCloudSyncStatus('synced');
+
+        channel = supabase
+          .channel('zuno-user-state-' + userId)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'zuno_user_state',
+              filter: 'user_id=eq.' + userId,
+            },
+            (payload) => {
+              const row = payload.new as { state?: unknown };
+              const nextState = normalizeZunoCloudState(row?.state);
+              if (!nextState) return;
+              const serialized = JSON.stringify(nextState);
+              if (serialized === lastCloudStateJsonRef.current) return;
+              lastCloudStateJsonRef.current = serialized;
+              setSettings({ ...DEFAULT_SETTINGS, ...nextState.settings });
+              setFavorites(nextState.favorites);
+              setRecentIds(nextState.recentIds);
+              setPlaylists(nextState.playlists);
+              setSearchHistory(nextState.searchHistory);
+              setCloudSyncStatus('synced');
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              setCloudSyncStatus('error');
+            }
+          });
+      } catch (error) {
+        if (cancelled) return;
+        setCloudSyncStatus('error');
+        showToast(
+          error instanceof Error
+            ? 'Bulut eşitlemesi kurulamadı: ' + error.message
+            : 'Bulut eşitlemesi kurulamadı. Supabase tablo kurulumunu kontrol et.'
+        );
+      }
+    };
+
+    void restoreCloudState();
+    return () => {
+      cancelled = true;
+      if (channel && supabase) void supabase.removeChannel(channel);
+    };
+  }, [authReady, authUser?.id, showToast]);
+
+  // Debounced cloud writes keep settings and library changes synchronized across devices.
+  useEffect(() => {
+    if (!supabase || !authUser || cloudReadyUserId !== authUser.id) return;
+    const serialized = JSON.stringify(cloudState);
+    if (serialized === lastCloudStateJsonRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      setCloudSyncStatus('syncing');
+      void supabase.from('zuno_user_state').upsert({
+        user_id: authUser.id,
+        state: cloudState,
+        updated_at: new Date().toISOString(),
+      }).then(({ error }) => {
+        if (error) {
+          setCloudSyncStatus('error');
+          return;
+        }
+        // Do not mark an older in-flight save as current if another device changed the state meanwhile.
+        if (JSON.stringify(cloudStateRef.current) === serialized) {
+          lastCloudStateJsonRef.current = serialized;
+          setCloudSyncStatus('synced');
+        }
+      }).catch(() => setCloudSyncStatus('error'));
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [authUser?.id, cloudReadyUserId, cloudState]);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -879,6 +1053,22 @@ export default function App() {
               <PwaInstallButton accentColor={settings.accentColor} darkMode={darkMode} />
               <button
                 type="button"
+                aria-label={authUser ? 'Hesap ve senkronizasyon' : 'Giriş yap'}
+                title={authUser?.email || 'ZUNO hesabı'}
+                onClick={() => setAccountOpen(true)}
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                  darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-900/10'
+                }`}
+                style={authUser ? { color: settings.accentColor } : undefined}
+              >
+                {authUser?.email ? (
+                  <span className="text-sm font-bold">{authUser.email.slice(0, 1).toUpperCase()}</span>
+                ) : (
+                  <UserRound className="h-5 w-5" />
+                )}
+              </button>
+              <button
+                type="button"
                 aria-label="Ayarlar"
                 onClick={() => setSettingsOpen((v) => !v)}
                 className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
@@ -1367,6 +1557,15 @@ export default function App() {
         accentColor={settings.accentColor}
         knobShape={settings.knobShape}
         darkMode={darkMode}
+      />
+
+      <AccountModal
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        user={authUser}
+        status={cloudSyncStatus}
+        darkMode={darkMode}
+        accentColor={settings.accentColor}
       />
     </div>
   );
