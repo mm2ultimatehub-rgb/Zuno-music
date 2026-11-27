@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArtworkImage } from './ArtworkImage';
 import { ChevronRight, Pause, Play, Sparkles } from 'lucide-react';
 import type { Album, Track } from '../types/music';
 import { formatDuration } from '../utils/zunoLogic';
@@ -71,7 +72,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               className={`group snap-start flex w-[148px] sm:w-[168px] shrink-0 flex-col rounded-2xl border p-2.5 text-left transition-all duration-200 active:scale-[0.98] ${surfaceCls}`}
             >
               <div className="relative mb-2.5 aspect-square w-full overflow-hidden rounded-xl bg-slate-900">
-                <img
+                <ArtworkImage
                   src={track.coverUrl}
                   alt={`${track.title} albüm kapağı`}
                   referrerPolicy="no-referrer"
@@ -177,7 +178,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             aria-label={`${featured.title} parçasını oynat`}
             className="group relative flex items-center gap-3.5 rounded-2xl border border-white/10 bg-black/25 p-2.5 pr-4 text-left backdrop-blur-md transition-transform hover:scale-[1.01] sm:w-64 shrink-0"
           >
-            <img
+            <ArtworkImage
               src={featured.coverUrl}
               alt={featured.title}
               referrerPolicy="no-referrer"
@@ -237,7 +238,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 className={`group snap-start flex w-[156px] sm:w-[176px] shrink-0 flex-col rounded-2xl border p-2.5 text-left transition-all active:scale-[0.98] ${surfaceCls}`}
               >
                 <div className="mb-2.5 aspect-square w-full overflow-hidden rounded-xl bg-slate-900">
-                  <img src={album.coverUrl} alt={`${album.title} albümü`} referrerPolicy="no-referrer" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  <ArtworkImage src={album.coverUrl} alt={`${album.title} albümü`} referrerPolicy="no-referrer" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                 </div>
                 <span className="truncate text-sm font-semibold">{album.title}</span>
                 <span className="mt-0.5 truncate text-xs opacity-65">
