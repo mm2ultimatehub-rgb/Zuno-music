@@ -29,7 +29,6 @@ import {
   COVER_SUBZERO,
   DEFAULT_SETTINGS,
   ZUNO_ALBUMS,
-  ZUNO_ARTISTS,
   ZUNO_TRACKS,
 } from './data/zunoCatalog';
 import { formatDuration, getNextTrackId } from './utils/zunoLogic';
