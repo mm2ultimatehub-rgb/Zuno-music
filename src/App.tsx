@@ -525,31 +525,56 @@ export default function App() {
     };
   }, [activeTab, searchQuery]);
 
-  // Search YouTube only while Discover has a real query; debounce and cancel stale requests.
+  // Home starts with real public YouTube Music catalogue results, without requiring a key.
+  useEffect(() => {
+    if (activeTab !== 'home' || youtubeMusicTracks.length > 0) return;
+    const controller = new AbortController();
+    setYoutubeMusicLoading(true);
+    setYoutubeMusicError(null);
+    void searchYouTubeMusic('popular songs', { signal: controller.signal })
+      .then((results) => {
+        if (controller.signal.aborted) return;
+        setYoutubeMusicTracks(results.tracks);
+        setYoutubeMusicAlbums(results.albums);
+        setYoutubeMusicArtists(results.artists);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music kataloğu açılamadı.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setYoutubeMusicLoading(false);
+      });
+    return () => controller.abort();
+  }, [activeTab, youtubeMusicTracks.length]);
+
+  // Search the same YouTube Music catalogue used by Zuno, only after the user submits a query.
   useEffect(() => {
     const query = youtubeSearchQuery.trim();
-    if (activeTab !== 'discover' || query.length < 2) {
-      setYoutubeVideos([]);
-      setYoutubeError(null);
-      setYoutubeLoading(false);
-      return;
-    }
+    if (activeTab !== 'discover' || query.length < 2) return;
 
     const controller = new AbortController();
-    setYoutubeLoading(true);
-    setYoutubeError(null);
+    setYoutubeMusicLoading(true);
+    setYoutubeMusicError(null);
     const timer = window.setTimeout(() => {
-      void searchYouTubeVideos(query, { signal: controller.signal, limit: 20 })
-        .then((videos) => setYoutubeVideos(videos))
+      void searchYouTubeMusic(query, { signal: controller.signal })
+        .then((results) => {
+          if (controller.signal.aborted) return;
+          setYoutubeMusicTracks(results.tracks);
+          setYoutubeMusicAlbums(results.albums);
+          setYoutubeMusicArtists(results.artists);
+        })
         .catch((error: unknown) => {
           if (controller.signal.aborted) return;
-          setYoutubeVideos([]);
-          setYoutubeError(error instanceof Error ? error.message : 'YouTube araması başarısız oldu.');
+          setYoutubeMusicTracks([]);
+          setYoutubeMusicAlbums([]);
+          setYoutubeMusicArtists([]);
+          setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music araması başarısız oldu.');
         })
         .finally(() => {
-          if (!controller.signal.aborted) setYoutubeLoading(false);
+          if (!controller.signal.aborted) setYoutubeMusicLoading(false);
         });
-    }, 550);
+    }, 150);
 
     return () => {
       window.clearTimeout(timer);
