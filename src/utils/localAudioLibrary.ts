@@ -5,6 +5,7 @@ export interface StoredAudioFile {
   size: number;
   lastModified: number;
   addedAt: number;
+  sourceTrackId?: string;
   blob: Blob;
 }
 
@@ -32,7 +33,12 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveAudioFile(id: string, file: File | Blob, name?: string): Promise<void> {
+export async function saveAudioFile(
+  id: string,
+  file: File | Blob,
+  name?: string,
+  sourceTrackId?: string
+): Promise<void> {
   const database = await openDatabase();
   try {
     await new Promise<void>((resolve, reject) => {
@@ -44,6 +50,7 @@ export async function saveAudioFile(id: string, file: File | Blob, name?: string
         size: file.size,
         lastModified: file instanceof File ? file.lastModified : Date.now(),
         addedAt: Date.now(),
+        sourceTrackId,
         blob: file,
       };
       transaction.objectStore(STORE_NAME).put(record);
@@ -113,4 +120,41 @@ export function createAudioId(): string {
     return `local-${crypto.randomUUID()}`;
   }
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export async function fetchAudioBlob(
+  url: string,
+  onProgress: (loadedBytes: number, totalBytes: number) => void,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const response = await fetch(url, { signal, credentials: 'omit' });
+  if (!response.ok) {
+    throw new Error(`Ses kaynağı HTTP ${response.status} yanıtı verdi.`);
+  }
+  if (response.type === 'opaque') {
+    throw new Error('Ses kaynağı indirmeye izin vermiyor (CORS).');
+  }
+
+  const totalBytes = Number(response.headers.get('content-length') || 0);
+  if (!response.body) {
+    const blob = await response.blob();
+    onProgress(blob.size, blob.size);
+    return blob;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let loadedBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      loadedBytes += value.byteLength;
+      onProgress(loadedBytes, totalBytes);
+    }
+  }
+  return new Blob(chunks, {
+    type: response.headers.get('content-type') || 'audio/mpeg',
+  });
 }
