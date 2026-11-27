@@ -100,6 +100,15 @@ async function youtubeMusicFetch(input: RequestInfo | URL, init?: RequestInit): 
   const headers = new Headers(request.headers);
   if (init?.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value));
   const method = (init?.method || request.method || 'GET').toUpperCase();
+  const requestUrl = new URL(request.url);
+  if (
+    headers.get('x-youtube-client-name') === '67'
+    && requestUrl.hostname === 'www.youtube.com'
+    && requestUrl.pathname.startsWith('/youtubei/')
+  ) {
+    requestUrl.hostname = 'music.youtube.com';
+  }
+  const url = requestUrl.toString();
   const body = init?.body !== undefined
     ? await bodyToText(init.body)
     : request.request
@@ -110,7 +119,7 @@ async function youtubeMusicFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (isTauriRuntime()) {
     const response = await invoke<HttpProxyResponse>('youtube_music_http_request', {
-      url: request.url,
+      url,
       method,
       headers: headerRecord,
       body: body ?? null,
@@ -123,7 +132,7 @@ async function youtubeMusicFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (Capacitor.isNativePlatform()) {
     const response = await CapacitorHttp.request({
-      url: request.url,
+      url,
       method,
       headers: headerRecord,
       data: body,
@@ -142,7 +151,7 @@ async function youtubeMusicFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   // The web build can attempt the same public request. Some browsers reject InnerTube CORS;
   // the native Android and Tauri transports above are the supported app paths.
-  return fetch(request.url, {
+  return fetch(url, {
     ...init,
     method,
     headers,
