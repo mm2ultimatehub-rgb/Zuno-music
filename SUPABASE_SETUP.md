@@ -10,11 +10,11 @@ Yeni projenin veritabanında `supabase/zuno_user_state.sql` migration'ı uygulan
 
 ## 3. E-posta ile kaydı aç
 
-Authentication → Sign In / Providers bölümünde Email sağlayıcısını etkinleştir ve e-posta doğrulamasını açık tut. Password policy bölümünde minimum şifre uzunluğunu 8 karakter yap. Authentication → URL Configuration bölümündeki Site URL ve Redirect URLs listesine uygulamanın tam yayın adresini (origin) ekle. Şifre sıfırlama e-postası da aynı adrese döner; yayın adresi değişirse izin verilen yönlendirme adreslerini güncelle.
+Authentication → Sign In / Providers bölümünde Email sağlayıcısını etkinleştir ve e-posta doğrulamasını açık tut. Password policy bölümünde minimum şifre uzunluğunu 8 karakter yap. Authentication → URL Configuration → Redirect URLs listesine Android uygulamasının `zuno://auth/callback` adresini ekle. ZUNO Android sürümü e-posta doğrulama ve şifre kurtarma bağlantılarını bu özel uygulama bağlantısına yönlendirir. Web/PWA sürümünü ayrıca kullanırsan onun gerçek yayın origin adresini de listeye ekle. Site URL, web kullanımı için varsayılan dönüş adresidir; Android uygulama kendi yönlendirme adresini istekte açıkça gönderir.
 
 ## 4. Şifre kurtarma
 
-Giriş ekranındaki **Şifremi unuttum** bağlantısı, girilen e-posta adresi için Supabase sıfırlama e-postası ister. Kullanıcı e-postadaki bağlantıyı uygulamada açtığında yeni şifre belirleme ekranı otomatik açılır. Bu akışın çalışması için bir önceki adımda uygulamanın yayın adresinin Redirect URLs listesinde bulunması gerekir.
+Giriş ekranındaki **Şifremi unuttum** bağlantısı, girilen e-posta adresi için Supabase sıfırlama e-postası ister. Kullanıcı Android'de e-postadaki bağlantıyı açtığında `zuno://auth/callback` uygulamayı açar; uygulama Supabase oturumunu kurar ve yeni şifre ekranını gösterir. Bu akışın çalışması için özel URI'nin Redirect URLs listesinde izinli olması gerekir.
 
 ## 5. Uygulama anahtarlarını tanımla
 
