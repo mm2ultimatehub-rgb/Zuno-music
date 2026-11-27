@@ -45,6 +45,7 @@ interface LibraryViewProps {
   onDeletePlaylist: (id: string) => void;
   onRemoveTrackFromPlaylist: (playlistId: string, trackId: string) => void;
   onImportLocalFiles: (files: FileList) => void;
+  onDeleteLocalTrack: (trackId: string) => void;
   accentColor: string;
   tabStyle: TabIndicatorStyle;
   knobShape: FluidShapeId;
@@ -77,6 +78,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   onDeletePlaylist,
   onRemoveTrackFromPlaylist,
   onImportLocalFiles,
+  onDeleteLocalTrack,
   accentColor,
   tabStyle,
   knobShape,
@@ -230,6 +232,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     style={isFav ? { color: accentColor } : undefined}
                   />
                 </button>
+                {track.isLocal && (
+                  <button
+                    type="button"
+                    aria-label={`${track.title} cihazdan sil`}
+                    onClick={() => onDeleteLocalTrack(track.id)}
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-red-400 opacity-75 hover:bg-red-500/10 hover:opacity-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
                 {playlistOwnerId && (
                   <button
                     type="button"
