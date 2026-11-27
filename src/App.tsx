@@ -197,7 +197,7 @@ export default function App() {
     const artists = new Map<string, Artist>();
     allTracks
       .filter((track) => track.audioObjectUrl || track.audioUrl || track.provider === 'youtube-music')
-      .forEach((track) => {}
+      .forEach((track) => {
         if (!artists.has(track.artist)) {
           artists.set(track.artist, {
             id: `artist-${track.provider || 'local'}-${track.artist.toLocaleLowerCase('tr-TR').replace(/[^a-z0-9]+/g, '-')}`,
