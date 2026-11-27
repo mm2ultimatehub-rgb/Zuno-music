@@ -29,7 +29,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   accentColor,
   darkMode,
 }) => {
-  const playableTracks = tracks.filter((track) => Boolean(track.audioUrl || track.audioObjectUrl));
+  const playableTracks = tracks.filter((track) => Boolean(
+    track.audioUrl || track.audioObjectUrl || track.provider === 'youtube-music'
+  ));
   const recentTracks = recentTrackIds
     .map((id) => playableTracks.find((track) => track.id === id))
     .filter((track): track is Track => Boolean(track));
