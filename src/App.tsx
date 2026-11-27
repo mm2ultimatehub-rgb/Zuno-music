@@ -132,7 +132,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Playback State
-  const [queue, setQueue] = useState<string[]>(() => ZUNO_TRACKS.slice(0, 6).map((t) => t.id));
+  const [queue, setQueue] = useState<string[]>([]);
   const [activeTrackId, setActiveTrackId] = useState<string>(ZUNO_TRACKS[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeSec, setCurrentTimeSec] = useState(34);
@@ -191,7 +191,7 @@ export default function App() {
     if (!firstPlayableTrack) return;
     setActiveTrackId(firstPlayableTrack.id);
     setCurrentTimeSec(0);
-    setQueue((previous) => [firstPlayableTrack.id, ...previous.filter((id) => id !== firstPlayableTrack.id)]);
+    setQueue(allTracks.filter((track) => track.audioObjectUrl || track.audioUrl).map((track) => track.id));
   }, [activeTrack, allTracks]);
 
   const prevTrack = useMemo(() => {
@@ -272,10 +272,15 @@ export default function App() {
         ? searchAudiusTracks(query, { signal: controller.signal, limit: 30 })
         : getTrendingAudiusTracks({ signal: controller.signal, limit: 30 });
       void request.then((tracks) => {
-        setRemoteTracks(tracks);
+        setRemoteTracks((previous) => {
+          const merged = new Map(tracks.map((track) => [track.id, track]));
+          previous.forEach((track) => {
+            if (!merged.has(track.id)) merged.set(track.id, track);
+          });
+          return [...merged.values()].slice(0, 150);
+        });
       }).catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        setRemoteTracks([]);
         setAudiusError(error instanceof Error ? error.message : 'Audius kataloğu yüklenemedi.');
       }).finally(() => {
         if (!controller.signal.aborted) setAudiusLoading(false);
@@ -368,8 +373,14 @@ export default function App() {
       }
       if (contextIds && contextIds.length > 0) {
         setQueue(contextIds);
-      } else if (!queue.includes(track.id)) {
-        setQueue((prev) => [track.id, ...prev]);
+      } else {
+        const playableIds = allTracks
+          .filter((item) => item.audioObjectUrl || item.audioUrl)
+          .map((item) => item.id);
+        setQueue((previous) => {
+          const retained = previous.filter((id) => id !== track.id && playableIds.includes(id));
+          return [track.id, ...retained, ...playableIds.filter((id) => id !== track.id && !retained.includes(id))];
+        });
       }
 
       if (activeTrackId === track.id) {
