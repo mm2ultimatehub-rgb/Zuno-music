@@ -1313,7 +1313,7 @@ export default function App() {
               />
             ) : activeTab === 'library' ? (
               <LibraryView
-                tracks={remoteTracks}
+                tracks={allTracks.filter((track) => !track.isLocal)}
                 localTracks={localTracks}
                 albums={libraryAlbums}
                 artists={libraryArtists}
