@@ -148,13 +148,13 @@ export async function fetchAudioBlob(
   }
 
   const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const chunks: ArrayBuffer[] = [];
   let loadedBytes = 0;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     if (value) {
-      chunks.push(value);
+      chunks.push(value.slice().buffer as ArrayBuffer);
       loadedBytes += value.byteLength;
       onProgress(loadedBytes, totalBytes);
     }
