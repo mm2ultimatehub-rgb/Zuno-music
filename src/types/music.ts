@@ -43,6 +43,8 @@ export interface Track {
   folderName?: string;
   isLocal?: boolean;
   audioObjectUrl?: string;
+  audioFileId?: string;
+  audioUrl?: string;
   year?: number;
 }
 
