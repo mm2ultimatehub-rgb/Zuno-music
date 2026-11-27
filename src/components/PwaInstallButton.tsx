@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Download, Share, WifiOff } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -19,6 +20,8 @@ export const PwaInstallButton: React.FC<PwaInstallButtonProps> = ({
   const [isIos, setIsIos] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  if (Capacitor.isNativePlatform() || window.location.protocol === 'tauri:') return null;
 
   useEffect(() => {
     const userAgent = window.navigator.userAgent;
