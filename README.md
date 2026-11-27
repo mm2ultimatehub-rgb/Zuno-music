@@ -1,5 +1,9 @@
 # ZUNO Music
 
+<p align="center">
+  <img src="zuno-icon.svg" width="144" alt="ZUNO Music metallic waveform emblem">
+</p>
+
 ZUNO Music aynı React/TypeScript arayüzünü kullanan çok platformlu bir müzik uygulamasıdır.
 
 ## İndirme merkezi
