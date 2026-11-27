@@ -261,8 +261,39 @@ jobs:
           pattern: zuno-*
           path: release-assets
           merge-multiple: true
-      - name: List release files
+      - name: List downloaded build artifacts
         run: find release-assets -type f -maxdepth 5 -print
+
+      - name: Prepare only installable release packages
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && needs.auto-version.outputs.version || (startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_version) }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-files
+          while IFS= read -r -d '' file; do
+            name="$(basename "$file")"
+            lower="${name,,}"
+            case "$lower" in
+              *.apk)       cp "$file" "release-files/ZUNO-Music-v${RELEASE_VERSION}-Android.apk" ;;
+              *.exe)       cp "$file" "release-files/ZUNO-Music-v${RELEASE_VERSION}-Windows-Setup.exe" ;;
+              *.msi)       cp "$file" "release-files/ZUNO-Music-v${RELEASE_VERSION}-Windows.msi" ;;
+              *.dmg)       cp "$file" "release-files/ZUNO-Music-v${RELEASE_VERSION}-macOS.dmg" ;;
+              *.pkg)       cp "$file" "release-files/ZUNO-Music-v${RELEASE_VERSION}-macOS.pkg" ;;
+              *.appimage)  cp "$file" "release-files/ZUNO-Music-v${RELEASE_VERSION}-Linux.AppImage" ;;
+              *.deb)       cp "$file" "release-files/ZUNO-Music-v${RELEASE_VERSION}-Linux.deb" ;;
+              *.rpm)       cp "$file" "release-files/ZUNO-Music-v${RELEASE_VERSION}-Linux.rpm" ;;
+            esac
+          done < <(find release-assets -type f -print0)
+
+          echo "Prepared installer files:"
+          find release-files -maxdepth 1 -type f -printf '%f (%s bytes)\\n' | sort
+
+          test -s "release-files/ZUNO-Music-v${RELEASE_VERSION}-Android.apk"
+          compgen -G "release-files/ZUNO-Music-v${RELEASE_VERSION}-Windows-Setup.exe" > /dev/null || compgen -G "release-files/ZUNO-Music-v${RELEASE_VERSION}-Windows.msi" > /dev/null
+          compgen -G "release-files/ZUNO-Music-v${RELEASE_VERSION}-macOS.dmg" > /dev/null || compgen -G "release-files/ZUNO-Music-v${RELEASE_VERSION}-macOS.pkg" > /dev/null
+          compgen -G "release-files/ZUNO-Music-v${RELEASE_VERSION}-Linux.AppImage" > /dev/null || compgen -G "release-files/ZUNO-Music-v${RELEASE_VERSION}-Linux.deb" > /dev/null || compgen -G "release-files/ZUNO-Music-v${RELEASE_VERSION}-Linux.rpm" > /dev/null
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -271,4 +302,6 @@ jobs:
           name: ZUNO Music ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && format('v{0}', needs.auto-version.outputs.version) || (startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', inputs.release_version)) }}
           generate_release_notes: true
           make_latest: true
-          files: release-assets/**/*
+          files: release-files/*
+          fail_on_unmatched_files: true
+          draft: false
