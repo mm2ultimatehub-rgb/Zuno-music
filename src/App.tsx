@@ -272,6 +272,16 @@ export default function App() {
   }, []);
 
 
+  // Password recovery links opened by Android are routed through Capacitor's native URL handler.
+  useEffect(() => {
+    const handleNativeRecovery = () => {
+      setPasswordRecoveryMode(true);
+      setAccountOpen(true);
+    };
+    window.addEventListener('zuno:password-recovery', handleNativeRecovery);
+    return () => window.removeEventListener('zuno:password-recovery', handleNativeRecovery);
+  }, []);
+
   // Restore the Supabase session on every platform and keep it updated after login/logout.
   useEffect(() => {
     const authClient = supabase;
