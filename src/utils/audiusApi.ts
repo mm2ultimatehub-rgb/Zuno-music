@@ -1,5 +1,7 @@
 import type { Track } from '../types/music';
 
+const AUDIUS_API_KEY = (import.meta.env.VITE_AUDIUS_API_KEY || '').trim();
+
 const API_BASES = [
   'https://api.audius.co/v1',
   'https://discoveryprovider.audius.co/v1',
@@ -106,7 +108,10 @@ async function requestTracks(
       const response = await fetch(`${base}${path}`, {
         method: 'GET',
         signal,
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...(AUDIUS_API_KEY ? { 'x-api-key': AUDIUS_API_KEY } : {}),
+        },
         credentials: 'omit',
       });
       if (!response.ok) {
@@ -142,6 +147,7 @@ export function searchAudiusTracks(
     query: trimmed,
     limit: String(options.limit ?? 30),
     sort_method: 'relevant',
+    app_name: 'ZUNO Music',
   });
   return requestTracks(`/tracks/search?${params.toString()}`, options.signal);
 }
@@ -152,6 +158,7 @@ export function getTrendingAudiusTracks(
   const params = new URLSearchParams({
     limit: String(options.limit ?? 30),
     time: 'week',
+    app_name: 'ZUNO Music',
   });
   return requestTracks(`/tracks/trending?${params.toString()}`, options.signal);
 }
