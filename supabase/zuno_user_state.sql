@@ -12,6 +12,8 @@ create table if not exists public.zuno_user_state (
 alter table public.zuno_user_state enable row level security;
 
 grant usage on schema public to authenticated;
+revoke all on table public.zuno_user_state from anon;
+revoke all on table public.zuno_user_state from public;
 grant select, insert, update, delete on table public.zuno_user_state to authenticated;
 
 drop policy if exists "Users can read their own ZUNO state" on public.zuno_user_state;
