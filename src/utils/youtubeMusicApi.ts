@@ -122,15 +122,11 @@ async function youtubeMusicFetch(input: RequestInfo | URL, init?: RequestInit): 
   }
 
   if (Capacitor.isNativePlatform()) {
-    let data: unknown = body;
-    if (body && headers.get('content-type')?.includes('application/json')) {
-      try { data = JSON.parse(body); } catch { /* preserve the original body */ }
-    }
     const response = await CapacitorHttp.request({
       url: request.url,
       method,
       headers: headerRecord,
-      data,
+      data: body,
       responseType: 'text',
       connectTimeout: 20000,
       readTimeout: 25000,
