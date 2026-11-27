@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Maximize2, Pause, Play, X, Youtube } from 'lucide-react';
+import { Maximize2, Pause, Play, SkipBack, SkipForward, X, Youtube } from 'lucide-react';
 import type { YouTubeVideo } from '../utils/youtubeApi';
 
 interface YouTubePlayerModalProps {
   video: YouTubeVideo | null;
   onStop: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
 }
 
 const YOUTUBE_ORIGIN = 'https://www.youtube-nocookie.com';
 
-export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, onStop }) => {
+export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, onStop, onPrevious, onNext }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -23,7 +25,6 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
 
   useEffect(() => {
     if (!video) return;
-    setExpanded(true);
     setIsPlaying(true);
 
     const handlePlayerMessage = (event: MessageEvent) => {
@@ -95,9 +96,19 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
               </span>
               <Youtube className="h-4 w-4 shrink-0 text-red-500" />
             </button>
+            {onPrevious && (
+              <button type="button" onClick={onPrevious} aria-label="Önceki parça" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <SkipBack className="h-4 w-4" />
+              </button>
+            )}
             <button type="button" onClick={togglePlayback} aria-label={isPlaying ? 'YouTube duraklat' : 'YouTube oynat'} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
               {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
             </button>
+            {onNext && (
+              <button type="button" onClick={onNext} aria-label="Sonraki parça" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <SkipForward className="h-4 w-4" />
+              </button>
+            )}
             <button type="button" onClick={onStop} aria-label="YouTube oynatmayı kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
               <X className="h-4 w-4" />
             </button>
@@ -157,10 +168,20 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
           {expanded && (
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
               <span className="text-xs text-white/55">Resmî YouTube oynatıcısı · Reklamlar ve yayın hakları YouTube tarafından yönetilir</span>
+              {onPrevious && (
+                <button type="button" onClick={onPrevious} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Önceki parça">
+                  <SkipBack className="h-4 w-4" />
+                </button>
+              )}
               <button type="button" onClick={togglePlayback} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/10 px-3 text-xs font-semibold hover:bg-white/15">
                 {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 {isPlaying ? 'Duraklat' : 'Oynat'}
               </button>
+              {onNext && (
+                <button type="button" onClick={onNext} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Sonraki parça">
+                  <SkipForward className="h-4 w-4" />
+                </button>
+              )}
             </div>
           )}
         </div>
