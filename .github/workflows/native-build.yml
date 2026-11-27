@@ -110,6 +110,8 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
       - name: Type-check and web bundle
+        env:
+          VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
         run: |
           npm run lint
           npm run build
@@ -231,6 +233,8 @@ jobs:
       - name: Generate ZUNO desktop icons
         run: npx tauri icon public/zuno-icon.svg --output src-tauri/icons
       - name: Build desktop installers
+        env:
+          VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
         run: npm run desktop:build
       - name: Upload desktop installers
         uses: actions/upload-artifact@v4
