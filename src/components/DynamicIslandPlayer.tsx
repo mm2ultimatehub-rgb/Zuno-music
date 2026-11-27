@@ -63,7 +63,7 @@ export const DynamicIslandPlayer: React.FC<DynamicIslandPlayerProps> = ({
             {[9, 15, 11, 18].map((height, index) => (
               <span
                 key={index}
-                className={isPlaying ? 'zuno-island-wave' : ''}
+                className={`block w-[3px] rounded-full ${isPlaying ? 'zuno-island-wave' : ''}`}
                 style={{
                   height: isPlaying ? height : 3,
                   animationDelay: (index * 110) + 'ms',
