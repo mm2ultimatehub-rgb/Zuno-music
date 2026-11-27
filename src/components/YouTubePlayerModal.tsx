@@ -57,6 +57,8 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
       session.playbackState = isPlaying ? 'playing' : 'paused';
       session.setActionHandler('play', () => { sendPlayerCommand('playVideo'); setIsPlaying(true); });
       session.setActionHandler('pause', () => { sendPlayerCommand('pauseVideo'); setIsPlaying(false); });
+      if (onPrevious) session.setActionHandler('previoustrack', onPrevious);
+      if (onNext) session.setActionHandler('nexttrack', onNext);
     } catch {
       // Media Session controls vary between browsers and native WebViews.
     }
@@ -64,11 +66,13 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
       try {
         session.setActionHandler('play', null);
         session.setActionHandler('pause', null);
+        session.setActionHandler('previoustrack', null);
+        session.setActionHandler('nexttrack', null);
       } catch {
         // Ignore unsupported actions.
       }
     };
-  }, [video, isPlaying, sendPlayerCommand]);
+  }, [video, isPlaying, sendPlayerCommand, onPrevious, onNext]);
 
   if (!video) return null;
 
