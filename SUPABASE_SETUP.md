@@ -1,8 +1,8 @@
 # ZUNO Music — Supabase hesap ve bulut eşitleme
 
-## 1. Ayrı bir Supabase projesi oluştur
+## 1. ZUNO projesi
 
-ZUNO Music için yeni bir proje oluştur. Başka bir uygulamanın (ör. VYRA) veritabanını ZUNO ile paylaşma.
+ZUNO için ayrı Supabase projesi oluşturuldu: [ZUNO Music Dashboard](https://supabase.com/dashboard/project/vjdrndrqxlmvzzrqiaej). Bölge: `eu-central-1`. VYRA projesinden bağımsızdır. Yeni bir proje oluşturman gerekmiyor.
 
 ## 2. Veritabanı tablosunu hazırla
 
@@ -37,4 +37,4 @@ Farklı değer kullanıyorsan aynı iki değişkeni uygulamanın yayın/build or
 
 ## 7. Güvenlik
 
-Veri tablosu `authenticated` rolüne açılır; `anon` rolüne erişim verilmez. RLS her sorguda `auth.uid()` ile sahipliği kontrol eder. Uygulama kodunda servis rolü veya gizli sunucu anahtarı bulunmaz.
+Veri tablosu yalnızca `authenticated` rolüne açılır; `anon` ve `PUBLIC` izinleri açıkça kaldırılmıştır. RLS her sorguda `auth.uid()` ile sahipliği kontrol eder. Güvenlik ve performans danışmanlarında uyarı bulunmadı. Uygulama kodunda servis rolü veya gizli sunucu anahtarı bulunmaz.
