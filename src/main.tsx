@@ -69,7 +69,7 @@ if (isZunoNativeContainer() && !Capacitor.isNativePlatform()) {
 // Browser PWA offline cache is only registered in browser builds.
 if (!isZunoNativeContainer() && import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((error) => {
+    navigator.serviceWorker.register(new URL('./sw.js', window.location.href).pathname).catch((error) => {
       console.error('ZUNO service worker registration failed:', error);
     });
   });

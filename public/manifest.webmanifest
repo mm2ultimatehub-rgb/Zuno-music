@@ -3,8 +3,8 @@
   "short_name": "ZUNO",
   "description": "ZUNO Music — müzik kütüphanen ve oynatıcın.",
   "lang": "tr",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#07090e",
@@ -15,7 +15,7 @@
   ],
   "icons": [
     {
-      "src": "/zuno-icon.svg",
+      "src": "./zuno-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

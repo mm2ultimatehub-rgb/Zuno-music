@@ -1,7 +1,14 @@
 const CACHE_PREFIX = 'zuno-shell-';
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/zuno-icon.svg'];
+const SCOPE_URL = new URL(self.registration.scope);
+const scopedUrl = (path) => new URL(path, SCOPE_URL).href;
+const APP_SHELL = [
+  scopedUrl('./'),
+  scopedUrl('./index.html'),
+  scopedUrl('./manifest.webmanifest'),
+  scopedUrl('./zuno-icon.svg'),
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -29,22 +36,35 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
+    const scopePath = SCOPE_URL.pathname;
+    const isAppShellNavigation =
+      url.pathname === scopePath ||
+      url.pathname === scopedUrl('./index.html').replace(SCOPE_URL.origin, '');
+
+    if (!isAppShellNavigation) {
+      event.respondWith(fetch(request));
+      return;
+    }
+
     event.respondWith(
       fetch(request)
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+            caches.open(CACHE_NAME).then((cache) => cache.put(scopedUrl('./index.html'), copy));
           }
           return response;
         })
-        .catch(async () => (await caches.match('/index.html')) || (await caches.match('/')))
+        .catch(async () =>
+          (await caches.match(scopedUrl('./index.html'))) ||
+          (await caches.match(scopedUrl('./')))
+        )
     );
     return;
   }
 
-  // Cache only app-shell resources; do not cache user audio or API responses.
-  if (url.pathname.startsWith('/assets/') || APP_SHELL.includes(url.pathname)) {
+  const assetsPrefix = new URL('./assets/', SCOPE_URL).pathname;
+  if (url.pathname.startsWith(assetsPrefix) || APP_SHELL.includes(url.href)) {
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request).then((response) => {
         if (response.ok && response.type === 'basic') {

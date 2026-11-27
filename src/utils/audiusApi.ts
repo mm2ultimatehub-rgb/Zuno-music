@@ -75,7 +75,7 @@ function mapTrack(item: AudiusTrackResponse, apiBase: string): Track | null {
     item.artwork?._480x480 ||
     item.artwork?._1000x1000 ||
     item.artwork?._150x150 ||
-    '/zuno-icon.svg';
+    './zuno-icon.svg';
   const audioBase = `${apiBase}/tracks/${encodeURIComponent(id)}`;
   const accentColor = stableAccent(id);
   const releaseDate = item.releaseDate || item.release_date;

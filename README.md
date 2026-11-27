@@ -1,6 +1,24 @@
 # ZUNO Music
 
+<p align="center">
+  <img src="zuno-icon.svg" width="144" alt="ZUNO Music metallic waveform emblem">
+</p>
+
 ZUNO Music aynı React/TypeScript arayüzünü kullanan çok platformlu bir müzik uygulamasıdır.
+
+## İndirme merkezi
+
+**[ZUNO Music'i indir — cihazına uygun en son sürüm](https://mm2ultimatehub-rgb.github.io/Zuno-music/download.html)**
+
+İndirme sayfası cihaz türünü otomatik algılar ve en son yayımlanmış kararlı GitHub Release dosyalarını getirir:
+
+- Android telefon/tablet: imzalı APK
+- Windows: kurulum EXE ve MSI
+- macOS: DMG veya PKG
+- Linux: AppImage, DEB ve RPM
+
+Yeni kararlı sürüm GitHub Releases'e yayımlandığında sayfadaki sürüm numarası ve indirme bağlantıları otomatik yenilenir. Siteye her yayın için elle APK veya bağlantı yüklemek gerekmez. Sayfadaki **Sürümü yenile** düğmesi de son sürümü yeniden kontrol eder. Diğer platform dosyaları aynı sayfada her zaman listelenir.
+
 
 ## Platformlar
 
@@ -16,7 +34,7 @@ ZUNO Music aynı React/TypeScript arayüzünü kullanan çok platformlu bir müz
 - Gerçek parça seçilene kadar boş/demode oynatıcı gösterimi; sahte katalog, söz ve indirme kayıtları kullanılmaz
 - Desteklenen tarayıcı/WebView ortamlarında Media Session sistem oynatma bilgileri ve medya tuşları
 - ZUNO hesabı, favoriler, çalma listeleri, ayarlar ve arama geçmişi için Supabase eşitlemesi
-- GitHub Releases üzerinden gerçek sürüm denetimi ve Android APK indirme bağlantısı
+- GitHub Releases üzerinden gerçek sürüm denetimi ve [otomatik çoklu platform indirme sayfası](https://mm2ultimatehub-rgb.github.io/Zuno-music/download.html)
 - Telefon, tablet ve masaüstü ekranlarına uyumlu arayüz
 
 Yerel ses dosyaları ve çevrimdışı indirmeler cihazda tutulur; otomatik olarak buluta yüklenmez. YouTube videoları YouTube'un kendi oynatıcısında açılır; YouTube sesini ayıklama veya YouTube içeriği için çevrimdışı MP3 indirme özelliği sunulmaz.
