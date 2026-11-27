@@ -9,6 +9,16 @@ export interface YouTubeMusicSearchResults {
   artists: Artist[];
 }
 
+export interface YouTubeVideo {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  description: string;
+  thumbnailUrl: string;
+  publishedAt: string;
+  durationSec: number;
+}
+
 type HttpProxyResponse = {
   status: number;
   headers: Record<string, string>;
@@ -28,6 +38,7 @@ type RawMusicItem = {
   thumbnails?: Array<{ url?: string; width?: number; height?: number }>;
   thumbnail?: unknown;
   endpoint?: { payload?: { browseId?: string; videoId?: string } };
+  navigationEndpoint?: unknown;
   flex_columns?: Array<{ title?: { toString(): string; runs?: Array<{ text?: string; endpoint?: unknown }> } }>;
   subscribers?: string;
   subscriber_count?: string;
@@ -213,8 +224,17 @@ function videoIdOf(item: RawMusicItem): string {
   return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : '';
 }
 
+function findBrowseId(value: unknown, depth = 0): string {
+  if (!value || typeof value !== 'object' || depth > 6) return '';
+  const record = value as { browseId?: unknown; payload?: unknown; endpoint?: unknown; navigationEndpoint?: unknown };
+  if (typeof record.browseId === 'string') return record.browseId;
+  return findBrowseId(record.payload, depth + 1)
+    || findBrowseId(record.endpoint, depth + 1)
+    || findBrowseId(record.navigationEndpoint, depth + 1);
+}
+
 function browseIdOf(item: RawMusicItem): string {
-  return item.endpoint?.payload?.browseId || item.id || '';
+  return findBrowseId(item.endpoint) || findBrowseId(item.navigationEndpoint) || item.id || '';
 }
 
 function durationOf(item: RawMusicItem): number {
@@ -230,10 +250,8 @@ function albumInfo(item: RawMusicItem): { title: string; id: string } {
   for (const column of item.flex_columns?.slice(1) || []) {
     const title = itemText(column.title);
     const runs = column.title?.runs || [];
-    const browseId = runs.map((run) => {
-      const endpoint = run.endpoint as { browseId?: string; payload?: { browseId?: string } } | undefined;
-      return endpoint?.payload?.browseId || endpoint?.browseId || '';
-    }).find((id) => id.startsWith('MPRE')) || '';
+    const browseId = runs.map((run) => findBrowseId(run.endpoint))
+      .find((id) => id.startsWith('MPRE')) || '';
     if (browseId && title) return { title, id: browseId };
   }
   return { title: '', id: '' };
@@ -357,7 +375,7 @@ export async function searchYouTubeMusic(
   return pending;
 }
 
-export function youtubeVideoFromTrack(track: Track) {
+export function youtubeVideoFromTrack(track: Track): YouTubeVideo {
   const videoId = track.providerTrackId || '';
   return {
     videoId,
