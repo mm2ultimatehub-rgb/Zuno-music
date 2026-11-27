@@ -327,7 +327,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       )}
 
       {/* YouTube video search uses YouTube's official embeddable player. */}
-      {(category === 'all' || category === 'videos') && query.trim().length >= 2 && (
+      {(category === 'all' || category === 'songs' || category === 'videos') && query.trim().length >= 2 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="inline-flex items-center gap-2 font-display text-base font-semibold tracking-tight opacity-90">
