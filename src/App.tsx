@@ -1385,6 +1385,13 @@ export default function App() {
                 onPlayTrack={handlePlayTrack}
                 onOpenAlbum={(album) => setSelectedAlbum(album)}
                 onAddToQueue={(track) => {
+                  if (track.provider === 'youtube-music') {
+                    setYoutubeMusicQueue((previous) => (
+                      previous.some((item) => item.id === track.id) ? previous : [...previous, track]
+                    ));
+                    showToast(`YouTube Music sırasına eklendi: ${track.title}`);
+                    return;
+                  }
                   setQueue((prev) => (prev.includes(track.id) ? prev : [...prev, track.id]));
                   showToast(`Sıraya eklendi: ${track.title}`);
                 }}
