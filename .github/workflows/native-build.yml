@@ -11,6 +11,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version, for example 0.1.1. Leave empty for test builds."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -33,10 +38,18 @@ jobs:
           java-version: 21
       - name: Set application version
         shell: bash
+        env:
+          REQUESTED_RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && -n "$REQUESTED_RELEASE_VERSION" ]]; then
+            VERSION="$REQUESTED_RELEASE_VERSION"
+            if ! [[ "$VERSION" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
+              echo "::error::Release version must use MAJOR.MINOR.PATCH, for example 0.1.1"
+              exit 1
+            fi
           fi
           echo "ZUNO_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
           echo "VITE_APP_VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -52,7 +65,7 @@ jobs:
           npx cap add android
           npx cap sync android
       - name: Require and decode release signing key
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') }}
         env:
           ZUNO_KEYSTORE_BASE64: ${{ secrets.ZUNO_KEYSTORE_BASE64 }}
           ZUNO_KEYSTORE_PASSWORD: ${{ secrets.ZUNO_KEYSTORE_PASSWORD }}
@@ -72,17 +85,17 @@ jobs:
       - name: Prepare app version, signing and auth deep link
         run: node scripts/prepare-android.mjs
       - name: Build signed release APK
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') }}
         env:
           ZUNO_KEYSTORE_PASSWORD: ${{ secrets.ZUNO_KEYSTORE_PASSWORD }}
           ZUNO_KEY_ALIAS: ${{ secrets.ZUNO_KEY_ALIAS }}
           ZUNO_KEY_PASSWORD: ${{ secrets.ZUNO_KEY_PASSWORD }}
         run: cd android && ./gradlew --no-daemon assembleRelease
       - name: Build debug APK for testing
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ !(startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '')) }}
         run: cd android && ./gradlew --no-daemon assembleDebug
       - name: Upload signed release APK
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') }}
         uses: actions/upload-artifact@v4
         with:
           name: zuno-android-release
@@ -90,7 +103,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Upload debug APK
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ !(startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '')) }}
         uses: actions/upload-artifact@v4
         with:
           name: zuno-android-debug
@@ -136,10 +149,18 @@ jobs:
           workspaces: src-tauri -> target
       - name: Set application version
         shell: bash
+        env:
+          REQUESTED_RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && -n "$REQUESTED_RELEASE_VERSION" ]]; then
+            VERSION="$REQUESTED_RELEASE_VERSION"
+            if ! [[ "$VERSION" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
+              echo "::error::Release version must use MAJOR.MINOR.PATCH, for example 0.1.1"
+              exit 1
+            fi
           fi
           echo "ZUNO_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
           echo "VITE_APP_VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -163,7 +184,7 @@ jobs:
 
   publish:
     name: Publish signed ZUNO release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '') }}
     needs:
       - android
       - desktop
@@ -182,8 +203,9 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ZUNO Music ${{ github.ref_name }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', inputs.release_version) }}
+          target_commitish: ${{ github.sha }}
+          name: ZUNO Music ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', inputs.release_version) }}
           generate_release_notes: true
           make_latest: true
           files: release-assets/**/*
