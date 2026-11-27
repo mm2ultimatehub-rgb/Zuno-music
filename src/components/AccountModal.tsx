@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../utils/supabaseClient';
+import { getZunoAuthRedirectUrl } from '../utils/authRedirect';
 import type { CloudSyncStatus } from '../utils/cloudSync';
 
 interface AccountModalProps {
@@ -81,7 +82,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         const { data, error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: getZunoAuthRedirectUrl() },
         });
         if (error) throw error;
         setMessage(
@@ -116,7 +117,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     setMessage(null);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo: window.location.origin,
+        redirectTo: getZunoAuthRedirectUrl(),
       });
       if (error) throw error;
       setMessage('Sıfırlama bağlantısı gönderildiyse e-posta kutuna ulaşacak. Gelen bağlantıyı bu cihazda aç.');
