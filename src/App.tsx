@@ -149,8 +149,8 @@ export default function App() {
     const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
     const onlineIds = new Set(remoteTracks.map((track) => track.id));
     return [
-      ...remoteTracks.map((track) => offlineById.get(track.id) || track),
       ...youtubeMusicTracks,
+      ...remoteTracks.map((track) => offlineById.get(track.id) || track),
       ...localTracks,
       ...offlineCatalogTracks.filter((track) => !onlineIds.has(track.id)),
     ];
@@ -195,7 +195,7 @@ export default function App() {
   const libraryArtists = useMemo(() => {
     const artists = new Map<string, Artist>();
     allTracks
-      .filter((track) => track.audioObjectUrl || track.audioUrl || track.provider === 'youtube-music')
+      .filter((track) => track.provider !== 'youtube-music' && (track.audioObjectUrl || track.audioUrl))
       .forEach((track) => {
         if (!artists.has(track.artist)) {
           artists.set(track.artist, {
@@ -237,7 +237,7 @@ export default function App() {
         };
       });
     const albumMap = new Map<string, Album>();
-    [...youtubeMusicAlbums, ...derivedAlbums].forEach((album) => albumMap.set(album.id, album));
+    [...derivedAlbums, ...youtubeMusicAlbums].forEach((album) => albumMap.set(album.id, album));
     return [...albumMap.values()];
   }, [allTracks, youtubeMusicAlbums]);
 
@@ -1364,7 +1364,7 @@ export default function App() {
                 playlists={playlists}
                 downloads={downloads}
                 remoteLoading={audiusLoading || youtubeMusicLoading}
-                remoteError={youtubeMusicError || audiusError}
+                remoteError={youtubeMusicError || (youtubeMusicTracks.length === 0 ? audiusError : null)}
                 favoriteIds={favorites}
                 query={searchQuery}
                 onQueryChange={(query) => {
