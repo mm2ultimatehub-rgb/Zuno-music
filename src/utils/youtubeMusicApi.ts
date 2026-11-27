@@ -155,17 +155,54 @@ async function youtubeMusicFetch(input: RequestInfo | URL, init?: RequestInit): 
   });
 }
 
+async function refreshMusicClientMetadata(client: Innertube): Promise<void> {
+  try {
+    const response = await youtubeMusicFetch('https://music.youtube.com/', {
+      headers: { Accept: 'text/html' },
+    });
+    if (!response.ok) return;
+
+    const html = await response.text();
+    const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1];
+    const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
+    if (!clientVersion) return;
+
+    const session = client.session as unknown as {
+      context: {
+        client: {
+          clientVersion: string;
+          originalUrl?: string;
+          mainAppWebInfo?: { graftUrl?: string };
+        };
+      };
+      api_key?: string;
+    };
+    session.context.client.clientVersion = clientVersion;
+    session.context.client.originalUrl = 'https://music.youtube.com';
+    if (session.context.client.mainAppWebInfo) {
+      session.context.client.mainAppWebInfo.graftUrl = 'https://music.youtube.com';
+    }
+    if (apiKey) session.api_key = apiKey;
+  } catch {
+    // A bundled youtubei.js client version remains available as a best-effort fallback.
+  }
+}
+
 async function getMusicClient(): Promise<Innertube> {
   if (!clientPromise) {
-    const pending = Innertube.create({
-      fetch: youtubeMusicFetch,
-      client_type: ClientType.MUSIC,
-      lang: 'tr',
-      location: 'AZ',
-      generate_session_locally: true,
-      retrieve_innertube_config: false,
-      retrieve_player: false,
-    });
+    const pending = (async () => {
+      const client = await Innertube.create({
+        fetch: youtubeMusicFetch,
+        client_type: ClientType.MUSIC,
+        lang: 'tr',
+        location: 'AZ',
+        generate_session_locally: true,
+        retrieve_innertube_config: false,
+        retrieve_player: false,
+      });
+      await refreshMusicClientMetadata(client);
+      return client;
+    })();
     pending.catch(() => {
       if (clientPromise === pending) clientPromise = null;
     });
