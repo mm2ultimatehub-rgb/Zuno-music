@@ -6,7 +6,7 @@ ZUNO Music için yeni bir proje oluştur. Başka bir uygulamanın (ör. VYRA) ve
 
 ## 2. Veritabanı tablosunu hazırla
 
-Yeni projenin SQL Editor bölümünde `supabase/zuno_user_state.sql` dosyasının tamamını çalıştır. Bu tablo yalnızca giriş yapan kullanıcının kendi satırını görmesine ve değiştirmesine izin veren RLS kurallarıyla korunur.
+Yeni projenin veritabanında `supabase/zuno_user_state.sql` migration'ı uygulandı. `public.zuno_user_state` tablosu, RLS ve kullanıcıya özel SELECT/INSERT/UPDATE/DELETE politikaları kuruldu; Realtime yayınına eklendi. Bu kurulum 27 Kasım 2026 tarihinde doğrulandı. Aynı SQL'i tekrar çalıştırman gerekmiyor.
 
 ## 3. E-posta ile kaydı aç
 
@@ -18,14 +18,14 @@ Giriş ekranındaki **Şifremi unuttum** bağlantısı, girilen e-posta adresi i
 
 ## 5. Uygulama anahtarlarını tanımla
 
-Supabase projesinin Project URL ve Publishable key değerlerini al. Yerel geliştirmede proje kökünde `.env.local` dosyası oluştur:
+ZUNO'nun özel Supabase Project URL ve publishable key değerleri uygulama istemcisine varsayılan olarak bağlandı. Normal kullanımda bunları elle girmen gerekmiyor. Farklı bir ortam veya proje kullanırken değerleri geçersiz kılmak için proje kökünde `.env.local` dosyası oluştur:
 
 ```env
 VITE_SUPABASE_URL=https://PROJECT_REF.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-Aynı iki değişkeni uygulamanın yayın/build ortamına da ekle ve yeni build al. Bu anahtarlar tarayıcıya gönderilir; bu nedenle yalnızca publishable key kullan. `service_role` veya `sb_secret_` anahtarını hiçbir zaman `VITE_` değişkenine koyma.
+Farklı değer kullanıyorsan aynı iki değişkeni uygulamanın yayın/build ortamına da ekle ve yeni build al. Publishable key tarayıcıya gönderilir; bu nedenle yalnızca publishable key kullan. `service_role` veya `sb_secret_` anahtarını hiçbir zaman `VITE_` değişkenine koyma.
 
 ## 6. Neler eşitlenir?
 
