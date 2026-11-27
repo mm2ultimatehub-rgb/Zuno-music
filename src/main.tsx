@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import App from './App.tsx';
 import './index.css';
 import { supabase } from './utils/supabaseClient';
+import { isZunoNativeContainer } from './utils/authRedirect';
 
 createRoot(document.getElementById('root')!).render(<App />);
 
@@ -40,11 +41,11 @@ async function handleNativeAuthUrl(rawUrl: string): Promise<void> {
       window.dispatchEvent(new Event('zuno:password-recovery'));
     }
   } catch (error) {
-    console.error('ZUNO native authentication callback failed:', error);
+    console.error('ZUNO authentication callback failed:', error);
   }
 }
 
-// Capacitor handles Supabase confirmation and password-recovery links through zuno://auth/callback.
+// Capacitor Android callback; handles warm and cold application starts.
 if (Capacitor.isNativePlatform()) {
   void NativeApp.addListener('appUrlOpen', ({ url }) => {
     void handleNativeAuthUrl(url);
@@ -54,9 +55,19 @@ if (Capacitor.isNativePlatform()) {
   });
 }
 
-// Keep the browser PWA offline cache out of native WebViews and Tauri desktop.
-const isTauri = window.location.protocol === 'tauri:';
-if (!Capacitor.isNativePlatform() && !isTauri && import.meta.env.PROD && 'serviceWorker' in navigator) {
+// Tauri desktop callback; a single-instance plugin forwards links from a second launch.
+if (isZunoNativeContainer() && !Capacitor.isNativePlatform()) {
+  void import('@tauri-apps/plugin-deep-link').then(async ({ getCurrent, onOpenUrl }) => {
+    const launchUrls = await getCurrent();
+    launchUrls?.forEach((url) => void handleNativeAuthUrl(url));
+    await onOpenUrl((urls) => urls.forEach((url) => void handleNativeAuthUrl(url)));
+  }).catch((error: unknown) => {
+    console.error('ZUNO desktop deep-link listener failed:', error);
+  });
+}
+
+// Browser PWA offline cache is only registered in browser builds.
+if (!isZunoNativeContainer() && import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((error) => {
       console.error('ZUNO service worker registration failed:', error);
