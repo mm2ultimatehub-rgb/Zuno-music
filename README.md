@@ -11,7 +11,7 @@ Telefon, tablet ve masaüstü tarayıcılar için duyarlı müzik uygulaması.
 
 ## Bulut hesabını etkinleştirme
 
-ZUNO’ya özel Supabase projesi ve ortam değişkenleri gerekir. Kurulum için [SUPABASE_SETUP.md](SUPABASE_SETUP.md) dosyasını izle. Supabase ayarlanmamışsa uygulama yerel müzik özelliklerini kullanmaya devam eder; hesap ekranı bulutun henüz yapılandırılmadığını açıkça gösterir.
+ZUNO’ya özel Supabase projesi bağlandı; kullanıcı durumu tablosu ve RLS politikaları kuruldu. Hesap ekranında e-posta ile kayıt/giriş ve şifre kurtarma bulunur. Yayın adresinin Supabase Auth Redirect URLs listesinde tanımlanması gerekir. Ayrıntılar için [SUPABASE_SETUP.md](SUPABASE_SETUP.md) dosyasını izle.
 
 ## Geliştirme
 
