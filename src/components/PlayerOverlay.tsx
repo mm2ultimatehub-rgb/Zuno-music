@@ -27,7 +27,7 @@ import { LiquidSlider } from './fluid/LiquidSlider';
 import { DownloadActionButton } from './fluid/DownloadActionButton';
 import { MorphingLoader } from './fluid/MorphingLoader';
 
-remove fabricated lyricsinterface MiniPlayerProps {
+interface MiniPlayerProps {
   track: Track;
   prevTrack?: Track;
   nextTrack?: Track;
@@ -367,7 +367,7 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({
   const [centerMode, setCenterMode] = useState<'cover' | 'lyrics' | 'queue'>('cover');
   const [showSleepMenu, setShowSleepMenu] = useState(false);
 
-remove fake lyric memo  const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>({
+const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>({
     active: false,
     startX: 0,
     lastX: 0,
