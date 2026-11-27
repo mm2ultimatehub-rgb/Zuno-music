@@ -53,7 +53,7 @@ function stableAccent(id: string): string {
   return palette[hash % palette.length];
 }
 
-function mapTrack(item: AudiusTrackResponse): Track | null {
+function mapTrack(item: AudiusTrackResponse, apiBase: string): Track | null {
   if (!item.id || !item.title || !isStreamable(item) || item.isStreamGated) {
     return null;
   }
@@ -66,7 +66,7 @@ function mapTrack(item: AudiusTrackResponse): Track | null {
     item.artwork?._1000x1000 ||
     item.artwork?._150x150 ||
     '/zuno-icon.svg';
-  const audioBase = `${API_BASES[0]}/tracks/${encodeURIComponent(id)}`;
+  const audioBase = `${apiBase}/tracks/${encodeURIComponent(id)}`;
   const accentColor = stableAccent(id);
   const releaseYear = item.releaseDate
     ? new Date(item.releaseDate).getFullYear()
@@ -117,7 +117,7 @@ async function requestTracks(
       if (!Array.isArray(payload.data)) {
         throw new AudiusApiError(payload.error || 'Müzik kaynağı beklenmeyen bir yanıt verdi.');
       }
-      return payload.data.map(mapTrack).filter((track): track is Track => track !== null);
+      return payload.data.map((item) => mapTrack(item, base)).filter((track): track is Track => track !== null);
     } catch (error) {
       if (signal?.aborted) throw error;
       lastError = error;
