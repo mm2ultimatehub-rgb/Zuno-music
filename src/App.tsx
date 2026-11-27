@@ -135,6 +135,7 @@ export default function App() {
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [audiusError, setAudiusError] = useState<string | null>(null);
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
+  const [youtubeSearchQuery, setYoutubeSearchQuery] = useState('');
   const [youtubeLoading, setYoutubeLoading] = useState(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [selectedYoutubeVideo, setSelectedYoutubeVideo] = useState<YouTubeVideo | null>(null);
@@ -514,7 +515,7 @@ export default function App() {
 
   // Search YouTube only while Discover has a real query; debounce and cancel stale requests.
   useEffect(() => {
-    const query = searchQuery.trim();
+    const query = youtubeSearchQuery.trim();
     if (activeTab !== 'discover' || query.length < 2) {
       setYoutubeVideos([]);
       setYoutubeError(null);
@@ -542,7 +543,7 @@ export default function App() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [activeTab, searchQuery]);
+  }, [activeTab, youtubeSearchQuery]);
 
   // Restore imported audio and completed offline downloads from persistent IndexedDB storage.
   useEffect(() => {
@@ -1272,6 +1273,7 @@ export default function App() {
                 youtubeVideos={youtubeVideos}
                 youtubeLoading={youtubeLoading}
                 youtubeError={youtubeError}
+                youtubeNeedsSubmit={searchQuery.trim() !== youtubeSearchQuery.trim()}
                 onOpenYouTube={setSelectedYoutubeVideo}
                 favoriteIds={favorites}
                 query={searchQuery}
@@ -1284,6 +1286,9 @@ export default function App() {
                   if (!trimmed) return;
                   setSearchHistory((prev) =>
                     [trimmed, ...prev.filter((item) => item !== trimmed)].slice(0, 8)
+                  );
+                  setYoutubeSearchQuery(
+                    searchCategory === 'all' || searchCategory === 'videos' ? trimmed : ''
                   );
                 }}
                 onClearHistory={() => setSearchHistory([])}
