@@ -535,7 +535,10 @@ export default function App() {
       .then((results) => {
         if (controller.signal.aborted) return;
         setYoutubeMusicTracks(results.tracks);
-        setYoutubeMusicAlbums(results.albums);
+        setYoutubeMusicAlbums(results.albums.map((album) => ({
+          ...album,
+          trackIds: results.tracks.filter((track) => track.albumId === album.id).map((track) => track.id),
+        })));
         setYoutubeMusicArtists(results.artists);
       })
       .catch((error: unknown) => {
@@ -561,7 +564,11 @@ export default function App() {
         .then((results) => {
           if (controller.signal.aborted) return;
           setYoutubeMusicTracks(results.tracks);
-          setYoutubeMusicAlbums(results.albums);
+          const albumsWithTracks = results.albums.map((album) => ({
+            ...album,
+            trackIds: results.tracks.filter((track) => track.albumId === album.id).map((track) => track.id),
+          }));
+          setYoutubeMusicAlbums(albumsWithTracks);
           setYoutubeMusicArtists(results.artists);
         })
         .catch((error: unknown) => {
