@@ -19,6 +19,9 @@ import { MorphingSwitch } from './fluid/MorphingSwitch';
 import { LiquidSlider } from './fluid/LiquidSlider';
 import { MorphingLoader } from './fluid/MorphingLoader';
 import { formatFileSize } from '../utils/zunoLogic';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { checkForZunoUpdate, type ZunoReleaseCheck } from '../utils/appUpdates';
 
 interface SettingsViewProps {
   settings: ZunoSettings;
@@ -46,7 +49,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   darkMode,
 }) => {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [updateMsg, setUpdateMsg] = useState('ZUNO v2.4.0 güncel');
+  const [updateMsg, setUpdateMsg] = useState('Yüklü sürüm: v' + (import.meta.env.VITE_APP_VERSION || '0.1.0'));
+  const [updateRelease, setUpdateRelease] = useState<ZunoReleaseCheck | null>(null);
   const [showComposeCode, setShowComposeCode] = useState(false);
   const [activeSnippetId, setActiveSnippetId] = useState(KOTLIN_COMPOSE_SNIPPETS[0].id);
   const [copied, setCopied] = useState(false);
@@ -55,13 +59,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     ? 'border-white/[0.08] bg-[#11151e]'
     : 'border-slate-200 bg-white shadow-sm';
 
-  const handleUpdateCheck = () => {
+  const handleUpdateCheck = async () => {
     setCheckingUpdate(true);
-    setUpdateMsg('Güncellemeler denetleniyor...');
-    window.setTimeout(() => {
+    setUpdateRelease(null);
+    setUpdateMsg('GitHub Releases üzerinden sürüm denetleniyor...');
+    try {
+      const release = await checkForZunoUpdate();
+      setUpdateRelease(release);
+      if (release.hasUpdate) {
+        setUpdateMsg(
+          `Yeni sürüm bulundu: v${release.latestVersion} (yüklü: v${release.currentVersion})`
+        );
+      } else {
+        setUpdateMsg(`ZUNO v${release.currentVersion} güncel. Son yayımlanan sürüm: v${release.latestVersion}`);
+      }
+    } catch (error) {
+      setUpdateMsg(error instanceof Error ? error.message : 'Güncelleme denetimi başarısız.');
+    } finally {
       setCheckingUpdate(false);
-      setUpdateMsg('En güncel ZUNO sürümünü kullanıyorsun (v2.4.0)');
-    }, 1500);
+    }
+  };
+
+  const openReleaseLink = async (url: string) => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Browser.open({ url });
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      window.location.assign(url);
+    }
   };
 
   const activeSnippet =
@@ -513,6 +541,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>Denetle</span>
             </button>
           </div>
+
+          {updateRelease?.hasUpdate && (
+            <div className="flex flex-wrap items-center gap-2">
+              {updateRelease.apkDownloadUrl && (
+                <button
+                  type="button"
+                  onClick={() => void openReleaseLink(updateRelease.apkDownloadUrl!)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold"
+                  style={{ backgroundColor: settings.accentColor, color: '#0b0e16' }}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Android APK indir</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void openReleaseLink(updateRelease.releaseUrl)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-current/15 px-3.5 text-xs font-medium hover:bg-white/10"
+              >
+                <Info className="h-3.5 w-3.5" />
+                <span>Sürüm notları</span>
+              </button>
+            </div>
+          )}
         </section>
       </div>
     </div>
