@@ -719,7 +719,7 @@ export default function App() {
 
   // Send real track metadata and transport actions to supported system media controls.
   useEffect(() => {
-    if (!activeTrack.id || !('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    if (selectedYoutubeVideo || !activeTrack.id || !('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
     const session = navigator.mediaSession;
     const artworkUrl = new URL(activeTrack.coverUrl, window.location.href).href;
 
@@ -781,7 +781,7 @@ export default function App() {
         // Unsupported action handlers are ignored.
       }
     };
-  }, [activeTrack, handleSkip, handleTogglePlay, isPlaying]);
+  }, [activeTrack, handleSkip, handleTogglePlay, isPlaying, selectedYoutubeVideo?.videoId]);
 
 
 
@@ -1295,7 +1295,13 @@ export default function App() {
                 youtubeLoading={youtubeLoading}
                 youtubeError={youtubeError}
                 youtubeNeedsSubmit={searchQuery.trim() !== youtubeSearchQuery.trim()}
-                onOpenYouTube={setSelectedYoutubeVideo}
+                onOpenYouTube={(video) => {
+                  if (isPlaying) {
+                    zunoAudioEngine.pause();
+                    setIsPlaying(false);
+                  }
+                  setSelectedYoutubeVideo(video);
+                }}
                 favoriteIds={favorites}
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
@@ -1598,7 +1604,7 @@ export default function App() {
       </div>
 
       {/* Floating mobile playback island */}
-      {!playerFullscreen && activeTrack.id && (
+      {!playerFullscreen && activeTrack.id && !selectedYoutubeVideo && (
         <DynamicIslandPlayer
           track={activeTrack}
           isPlaying={isPlaying}
@@ -1713,7 +1719,7 @@ export default function App() {
 
       <YouTubePlayerModal
         video={selectedYoutubeVideo}
-        onClose={() => setSelectedYoutubeVideo(null)}
+        onStop={() => setSelectedYoutubeVideo(null)}
       />
 
       {/* Album Detail Sheet/Modal */}
