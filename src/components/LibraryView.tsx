@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { ArtworkImage } from './ArtworkImage';
 import {
   Check,
   Edit3,
@@ -147,7 +148,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 className={`group flex flex-col rounded-2xl border p-2.5 text-left transition-all ${cardSurface}`}
               >
                 <div className="relative mb-2 aspect-square w-full overflow-hidden rounded-xl bg-slate-900">
-                  <img
+                  <ArtworkImage
                     src={track.coverUrl}
                     alt={track.title}
                     referrerPolicy="no-referrer"
@@ -187,7 +188,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 onClick={() => onPlayTrack(track, items.map((t) => t.id))}
                 className="flex min-w-0 flex-1 items-center gap-3 text-left"
               >
-                <img
+                <ArtworkImage
                   src={track.coverUrl}
                   alt={track.title}
                   referrerPolicy="no-referrer"
@@ -384,7 +385,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               </div>
 
               <div className="flex items-center gap-4">
-                <img
+                <ArtworkImage
                   src={selectedPlaylist.coverUrl}
                   alt={selectedPlaylist.name}
                   referrerPolicy="no-referrer"
@@ -509,7 +510,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                       onClick={() => setSelectedPlaylistId(pl.id)}
                       className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-all ${cardSurface}`}
                     >
-                      <img
+                      <ArtworkImage
                         src={pl.coverUrl}
                         alt={pl.name}
                         referrerPolicy="no-referrer"
@@ -547,7 +548,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 onClick={() => onOpenAlbum(album)}
                 className={`flex flex-col rounded-2xl border p-2.5 text-left transition-transform active:scale-[0.98] ${cardSurface}`}
               >
-                <img
+                <ArtworkImage
                   src={album.coverUrl}
                   alt={album.title}
                   referrerPolicy="no-referrer"
@@ -579,7 +580,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 key={artist.id}
                 className={`flex flex-col items-center rounded-2xl border p-3.5 text-center ${cardSurface}`}
               >
-                <img
+                <ArtworkImage
                   src={artist.coverUrl}
                   alt={artist.name}
                   referrerPolicy="no-referrer"
