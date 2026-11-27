@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArtworkImage } from './ArtworkImage';
 import { Heart, Play, X } from 'lucide-react';
 import type { Album, DownloadItem, FluidShapeId, Track } from '../types/music';
 import { formatDuration } from '../utils/zunoLogic';
@@ -57,7 +58,7 @@ export const AlbumModal: React.FC<AlbumModalProps> = ({
       >
         <div className="flex items-start justify-between gap-4 mb-5">
           <div className="flex items-center gap-4 min-w-0">
-            <img
+            <ArtworkImage
               src={album.coverUrl}
               alt={album.title}
               referrerPolicy="no-referrer"
