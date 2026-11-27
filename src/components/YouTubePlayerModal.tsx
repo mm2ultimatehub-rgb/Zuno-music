@@ -173,7 +173,17 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
           </div>
           {expanded && (
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
-              <span className="text-xs text-white/55">Resmî YouTube oynatıcısı · Reklamlar ve yayın hakları YouTube tarafından yönetilir</span>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xs text-white/55">Resmî YouTube oynatıcısı · Reklamlar ve yayın hakları YouTube tarafından yönetilir</span>
+                <a
+                  href={'https://music.youtube.com/watch?v=' + encodeURIComponent(video.videoId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-block text-xs font-semibold text-white/80 underline underline-offset-4"
+                >
+                  YouTube Music'te aç
+                </a>
+              </div>
               {onPrevious && (
                 <button type="button" onClick={onPrevious} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Önceki parça">
                   <SkipBack className="h-4 w-4" />
