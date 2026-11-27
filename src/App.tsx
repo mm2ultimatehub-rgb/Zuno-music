@@ -216,7 +216,7 @@ export default function App() {
     const groups = new Map<string, Track[]>();
     allTracks
       .filter((track) => track.audioObjectUrl || track.audioUrl || track.provider === 'youtube-music')
-      .forEach((track) => {}
+      .forEach((track) => {
         const key = track.albumId || track.id;
         const group = groups.get(key) || [];
         group.push(track);
