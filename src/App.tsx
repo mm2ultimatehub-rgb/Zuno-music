@@ -35,6 +35,7 @@ import {
 import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
 import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
+import { getTrendingAudiusTracks, searchAudiusTracks } from './utils/audiusApi';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -99,10 +100,20 @@ export default function App() {
 
   const [localTracks, setLocalTracks] = useState<Track[]>([]);
   const [offlineCatalogTracks, setOfflineCatalogTracks] = useState<Track[]>([]);
+  const [remoteTracks, setRemoteTracks] = useState<Track[]>([]);
+  const [audiusLoading, setAudiusLoading] = useState(false);
+  const [audiusError, setAudiusError] = useState<string | null>(null);
   const allTracks = useMemo(() => {
     const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
-    return [...ZUNO_TRACKS.map((track) => offlineById.get(track.id) || track), ...localTracks];
-  }, [localTracks, offlineCatalogTracks]);
+    const onlineIds = new Set(remoteTracks.map((track) => track.id));
+    const localCatalogIds = new Set(ZUNO_TRACKS.map((track) => track.id));
+    return [
+      ...remoteTracks.map((track) => offlineById.get(track.id) || track),
+      ...ZUNO_TRACKS.map((track) => offlineById.get(track.id) || track),
+      ...localTracks,
+      ...offlineCatalogTracks.filter((track) => !onlineIds.has(track.id) && !localCatalogIds.has(track.id)),
+    ];
+  }, [localTracks, offlineCatalogTracks, remoteTracks]);
   const downloadControllersRef = useRef<Map<string, AbortController>>(new Map());
   const handleSkipRef = useRef<(direction: 'next' | 'prev') => void>(() => undefined);
 
@@ -199,6 +210,35 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [toastMessage]);
 
+  // Load live indie music charts on Home and search Audius as the user types.
+  useEffect(() => {
+    if (activeTab !== 'home' && activeTab !== 'discover') return;
+    const controller = new AbortController();
+    const query = activeTab === 'discover' ? searchQuery.trim() : '';
+    setAudiusLoading(true);
+    setAudiusError(null);
+
+    const timer = window.setTimeout(() => {
+      const request = query
+        ? searchAudiusTracks(query, { signal: controller.signal, limit: 30 })
+        : getTrendingAudiusTracks({ signal: controller.signal, limit: 30 });
+      void request.then((tracks) => {
+        setRemoteTracks(tracks);
+      }).catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setRemoteTracks([]);
+        setAudiusError(error instanceof Error ? error.message : 'Audius kataloğu yüklenemedi.');
+      }).finally(() => {
+        if (!controller.signal.aborted) setAudiusLoading(false);
+      });
+    }, query ? 350 : 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeTab, searchQuery]);
+
   // Restore imported audio and completed offline downloads from persistent IndexedDB storage.
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +251,7 @@ export default function App() {
         const objectUrl = URL.createObjectURL(record.blob);
         objectUrls.push(objectUrl);
         if (record.sourceTrackId) {
-          const sourceTrack = ZUNO_TRACKS.find((track) => track.id === record.sourceTrackId);
+          const sourceTrack = ZUNO_TRACKS.find((track) => track.id === record.sourceTrackId) || record.trackMetadata;
           if (!sourceTrack) continue;
           restoredCatalog.push({
             ...sourceTrack,
@@ -405,7 +445,11 @@ export default function App() {
         showToast(`${track.title} çevrimdışı kullanıma hazır`);
         return;
       }
-      if (!track.audioUrl) {
+      if (track.provider === 'audius' && !track.downloadable) {
+        showToast('Bu parçanın sanatçısı indirmeye izin vermiyor. Çevrimiçi dinleyebilirsin.');
+        return;
+      }
+      if (!track.downloadUrl) {
         if (track.isLocal && track.audioFileId) {
           const size = track.fileSizeMb;
           const item: DownloadItem = {
@@ -442,7 +486,7 @@ export default function App() {
 
       try {
         const blob = await fetchAudioBlob(
-          track.audioUrl,
+          track.downloadUrl,
           (loadedBytes, totalBytes) => {
             const totalMb = totalBytes / (1024 * 1024);
             const downloadedMb = loadedBytes / (1024 * 1024);
@@ -459,7 +503,7 @@ export default function App() {
         );
         const fileId = `offline-${track.id}`;
         const fileName = `${track.title.replace(/[\\/:*?"<>|]/g, '_')}.audio`;
-        await saveAudioFile(fileId, blob, fileName, track.id);
+        await saveAudioFile(fileId, blob, fileName, track.id, track);
         const audioObjectUrl = URL.createObjectURL(blob);
         const cachedTrack: Track = {
           ...track,
@@ -811,6 +855,8 @@ export default function App() {
                 artists={ZUNO_ARTISTS}
                 playlists={playlists}
                 downloads={downloads}
+                remoteLoading={audiusLoading}
+                remoteError={audiusError}
                 favoriteIds={favorites}
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
