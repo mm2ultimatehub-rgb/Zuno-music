@@ -1,10 +1,16 @@
 import type { Album, Artist, DownloadItem, Playlist, Track, ZunoSettings } from '../types/music';
 
-export const COVER_NOCTURNE = '/src/assets/images/album_nocturne_synth_1795800866721.jpg';
-export const COVER_HORIZON = '/src/assets/images/album_horizon_waves_1795800866958.jpg';
-export const COVER_VELVET = '/src/assets/images/album_velvet_echo_1795800867762.jpg';
-export const COVER_PRISM = '/src/assets/images/album_prism_bloom_1795800867687.jpg';
-export const COVER_SUBZERO = '/src/assets/images/album_subzero_pulse_1795800869222.jpg';
+import coverNocturne from '../assets/images/album_nocturne_synth_1795800866721.jpg';
+import coverHorizon from '../assets/images/album_horizon_waves_1795800866958.jpg';
+import coverVelvet from '../assets/images/album_velvet_echo_1795800867762.jpg';
+import coverPrism from '../assets/images/album_prism_bloom_1795800867687.jpg';
+import coverSubzero from '../assets/images/album_subzero_pulse_1795800869222.jpg';
+
+export const COVER_NOCTURNE = coverNocturne;
+export const COVER_HORIZON = coverHorizon;
+export const COVER_VELVET = coverVelvet;
+export const COVER_PRISM = coverPrism;
+export const COVER_SUBZERO = coverSubzero;
 
 export const ZUNO_TRACKS: Track[] = [
   {
