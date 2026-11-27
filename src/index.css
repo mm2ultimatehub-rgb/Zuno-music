@@ -1,0 +1,71 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --zuno-bg: #f4f6fa;
+  --zuno-surface: #ffffff;
+  --zuno-surface-2: #eaeff6;
+  --zuno-fg: #0c1118;
+  --zuno-muted: #5a6678;
+  --zuno-border: rgba(15, 23, 42, 0.08);
+  --zuno-accent: #7c4dff;
+  --zuno-accent-contrast: #ffffff;
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+.dark {
+  --zuno-bg: #07090e;
+  --zuno-surface: #11151e;
+  --zuno-surface-2: #181e2a;
+  --zuno-fg: #f2f5f9;
+  --zuno-muted: #8a95a8;
+  --zuno-border: rgba(255, 255, 255, 0.08);
+  --zuno-accent: #9b72ff;
+  --zuno-accent-contrast: #0b0e16;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-color: var(--zuno-bg);
+  color: var(--zuno-fg);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom sleek scrollbar for horizontal carousels and panels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
