@@ -219,7 +219,7 @@ export default function App() {
             fileSizeMb: Number((record.size / (1024 * 1024)).toFixed(1)),
           });
         } else {
-          const title = record.name.replace(/\\.[^/.]+$/, '');
+          const title = record.name.replace(/\.[^/.]+$/, '');
           restoredLocals.push({
             id: record.id,
             title,
@@ -397,35 +397,6 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [isPlaying, sleepRemainingSec !== null, showToast]);
 
-  // Download manager progression loop
-  useEffect(() => {
-    const hasActive = downloads.some((d) => d.status === 'downloading');
-    if (!hasActive) return;
-
-    const timer = window.setInterval(() => {
-      setDownloads((prev) => {
-        const newlyCompleted: string[] = [];
-        const next = prev.map((d) => {
-          if (d.status !== 'downloading') return d;
-          const updated = advanceDownloadProgress(d, 14);
-          if (updated.status === 'completed') {
-            newlyCompleted.push(d.trackId);
-          }
-          return updated;
-        });
-        if (newlyCompleted.length > 0) {
-          const tr = allTracks.find((t) => t.id === newlyCompleted[0]);
-          if (tr) {
-            showToast(`İndirme tamamlandı: ${tr.title}`);
-          }
-        }
-        return next;
-      });
-    }, 450);
-
-    return () => window.clearInterval(timer);
-  }, [downloads, allTracks, showToast]);
-
   const handleDownloadTrack = useCallback(
     async (track: Track) => {
       const existing = downloads.find((item) => item.trackId === track.id);
@@ -532,7 +503,7 @@ export default function App() {
   const handleImportLocalFiles = useCallback(
     async (files: FileList) => {
       const audioFiles = Array.from(files).filter((file) =>
-        file.type.startsWith('audio/') || /\\.(mp3|m4a|aac|wav|flac|ogg|opus|wma)$/i.test(file.name)
+        file.type.startsWith('audio/') || /\.(mp3|m4a|aac|wav|flac|ogg|opus|wma)$/i.test(file.name)
       );
       if (audioFiles.length === 0) {
         showToast('Desteklenen bir ses dosyası seçilmedi.');
@@ -546,7 +517,7 @@ export default function App() {
         const durationSec = await readAudioDuration(file);
         return {
           id,
-          title: file.name.replace(/\\.[^/.]+$/, ''),
+          title: file.name.replace(/\.[^/.]+$/, ''),
           artist: 'Yerel Dosya',
           album: 'İçe Aktarılan Müzikler',
           albumId: 'alb-local-import',
