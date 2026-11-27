@@ -11,6 +11,7 @@ interface AudiusTrackResponse {
   id: string | number;
   title?: string;
   duration?: number;
+  album?: { id?: string | number; title?: string };
   artwork?: {
     _1000x1000?: string;
     _480x480?: string;
@@ -49,7 +50,8 @@ export class AudiusApiError extends Error {
 function isStreamable(track: AudiusTrackResponse): boolean {
   const value = track.isStreamable;
   const resolved = value ?? track.is_streamable;
-  return resolved === true || resolved === 'true' || resolved === '1';
+  // Some discovery providers omit the flag; allow playback to verify the stream URL.
+  return resolved === undefined || resolved === true || resolved === 'true' || resolved === '1';
 }
 
 function stableAccent(id: string): string {
@@ -83,8 +85,8 @@ function mapTrack(item: AudiusTrackResponse, apiBase: string): Track | null {
     id: `audius-${id}`,
     title: item.title,
     artist,
-    album: 'Audius',
-    albumId: 'audius-catalog',
+    album: item.album?.title || item.title,
+    albumId: 'audius-album-' + String(item.album?.id || id),
     durationSec: Math.max(1, Math.round(item.duration || 1)),
     coverUrl,
     category: 'songs',
