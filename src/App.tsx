@@ -726,28 +726,38 @@ export default function App() {
         title: activeTrack.title,
         artist: activeTrack.artist,
         album: activeTrack.album,
-        artwork: [{ src: artworkUrl, sizes: '512x512', type: 'image/png' }],
+        artwork: [{ src: artworkUrl, sizes: '512x512' }],
       });
       session.playbackState = isPlaying ? 'playing' : 'paused';
-      session.setActionHandler('play', () => {
+      const registerAction = (
+        action: MediaSessionAction,
+        handler: MediaSessionActionHandler
+      ) => {
+        try {
+          session.setActionHandler(action, handler);
+        } catch {
+          // Unsupported media actions must not prevent other controls from registering.
+        }
+      };
+      registerAction('play', () => {
         if (!isPlaying) handleTogglePlay();
       });
-      session.setActionHandler('pause', () => {
+      registerAction('pause', () => {
         if (isPlaying) handleTogglePlay();
       });
-      session.setActionHandler('previoustrack', () => handleSkip('prev'));
-      session.setActionHandler('nexttrack', () => handleSkip('next'));
-      session.setActionHandler('seekbackward', (details) => {
+      registerAction('previoustrack', () => handleSkip('prev'));
+      registerAction('nexttrack', () => handleSkip('next'));
+      registerAction('seekbackward', (details) => {
         const next = Math.max(0, zunoAudioEngine.getCurrentTime() - (details.seekOffset || 10));
         zunoAudioEngine.seek(next);
         setCurrentTimeSec(Math.floor(next));
       });
-      session.setActionHandler('seekforward', (details) => {
+      registerAction('seekforward', (details) => {
         const next = Math.min(zunoAudioEngine.getDuration(), zunoAudioEngine.getCurrentTime() + (details.seekOffset || 10));
         zunoAudioEngine.seek(next);
         setCurrentTimeSec(Math.floor(next));
       });
-      session.setActionHandler('seekto', (details) => {
+      registerAction('seekto', (details) => {
         if (typeof details.seekTime !== 'number') return;
         zunoAudioEngine.seek(details.seekTime);
         setCurrentTimeSec(Math.floor(details.seekTime));
