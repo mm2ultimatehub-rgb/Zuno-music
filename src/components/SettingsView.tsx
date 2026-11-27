@@ -544,15 +544,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {updateRelease?.hasUpdate && (
             <div className="flex flex-wrap items-center gap-2">
-              {updateRelease.apkDownloadUrl && (
+              {updateRelease.platformDownloadUrl && (
                 <button
                   type="button"
-                  onClick={() => void openReleaseLink(updateRelease.apkDownloadUrl!)}
+                  onClick={() => void openReleaseLink(updateRelease.platformDownloadUrl!)}
                   className="inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold"
                   style={{ backgroundColor: settings.accentColor, color: '#0b0e16' }}
                 >
                   <Download className="h-3.5 w-3.5" />
-                  <span>Android APK indir</span>
+                  <span>{updateRelease.platformDownloadLabel || 'Güncellemeyi indir'}</span>
                 </button>
               )}
               <button
