@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArtworkImage } from './ArtworkImage';
 import { AlertCircle, CheckCircle2, Pause, Play, RotateCcw, Trash2 } from 'lucide-react';
 import type { DownloadItem, DownloadStatus, Track } from '../types/music';
 import { formatFileSize } from '../utils/zunoLogic';
@@ -96,7 +97,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
               >
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-900">
-                    <img
+                    <ArtworkImage
                       src={track.coverUrl}
                       alt={track.title}
                       referrerPolicy="no-referrer"
