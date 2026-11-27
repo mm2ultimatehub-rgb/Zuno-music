@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { ArtworkImage } from './ArtworkImage';
 import {
   ChevronDown,
   Gauge,
@@ -224,7 +225,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
                 : undefined
             }
           >
-            <img
+            <ArtworkImage
               src={track.coverUrl}
               alt={track.title}
               referrerPolicy="no-referrer"
@@ -544,7 +545,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
                 className="absolute -inset-4 rounded-[38px] opacity-40 blur-3xl transition-colors duration-700"
                 style={{ backgroundColor: activeAccent }}
               />
-              <img
+              <ArtworkImage
                 key={track.id}
                 src={track.coverUrl}
                 alt={`${track.title} albüm kapağı`}
@@ -590,7 +591,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
                       onClick={() => onPlayFromQueue(qt)}
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
-                      <img
+                      <ArtworkImage
                         src={qt.coverUrl}
                         alt={qt.title}
                         referrerPolicy="no-referrer"
