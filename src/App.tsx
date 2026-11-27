@@ -641,10 +641,15 @@ export default function App() {
         } satisfies Track;
       }));
 
-      const imported = results
-        .filter((result): result is PromiseFulfilledResult<Track> => result.status === 'fulfilled')
-        .map((result) => result.value);
-      const failures = results.filter((result) => result.status === 'rejected').length;
+      const imported: Track[] = [];
+      let failures = 0;
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          imported.push(result.value as Track);
+        } else {
+          failures += 1;
+        }
+      });
       if (imported.length > 0) {
         setLocalTracks((previous) => [...imported, ...previous]);
         showToast(`${imported.length} ses dosyası kalıcı müzik kütüphanesine eklendi`);
