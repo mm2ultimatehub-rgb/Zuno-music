@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Maximize2, Pause, Play, SkipBack, SkipForward, X, Youtube } from 'lucide-react';
-import type { YouTubeVideo } from '../utils/youtubeApi';
+import type { YouTubeVideo } from '../utils/youtubeMusicApi';
 
 interface YouTubePlayerModalProps {
   video: YouTubeVideo | null;
