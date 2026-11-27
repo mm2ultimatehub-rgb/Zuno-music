@@ -118,12 +118,14 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
 
       <div className={expanded
         ? 'fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/85 p-3 backdrop-blur-xl sm:p-6'
-        : 'pointer-events-none fixed bottom-0 right-0 z-[1] h-px w-px overflow-hidden opacity-0'}
+        : 'pointer-events-auto fixed bottom-24 right-3 z-[45] w-40 overflow-hidden rounded-xl border border-white/15 bg-black shadow-2xl sm:bottom-5 sm:right-5 sm:w-52'}
         role={expanded ? 'dialog' : undefined}
         aria-modal={expanded ? true : undefined}
-        aria-label={expanded ? 'YouTube oynatıcı' : undefined}
+        aria-label={expanded ? 'YouTube oynatıcı' : 'Küçük YouTube oynatıcısı'}
       >
-        <div className={expanded ? 'w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#0d1119] text-white shadow-2xl' : 'h-px w-px'}>
+        <div className={expanded
+          ? 'w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#0d1119] text-white shadow-2xl'
+          : 'aspect-video w-full overflow-hidden bg-black'}>
           {expanded && (
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -143,7 +145,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
               </div>
             </div>
           )}
-          <div className={expanded ? 'aspect-video w-full bg-black' : 'h-px w-px'}>
+          <div className="aspect-video w-full bg-black">
             <iframe
               ref={iframeRef}
               key={video.videoId}
