@@ -20,6 +20,8 @@ interface AccountModalProps {
   status: CloudSyncStatus;
   darkMode: boolean;
   accentColor: string;
+  recoveryMode: boolean;
+  onRecoveryComplete: () => void;
 }
 
 const STATUS_LABELS: Record<CloudSyncStatus, string> = {
@@ -37,10 +39,14 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   status,
   darkMode,
   accentColor,
+  recoveryMode,
+  onRecoveryComplete,
 }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -93,6 +99,58 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Hesap işlemi tamamlanamadı.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!supabase) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setMessage('Şifre sıfırlama bağlantısı için önce e-posta adresini yaz.');
+      return;
+    }
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      setMessage('Sıfırlama bağlantısı gönderildiyse e-posta kutuna ulaşacak. Gelen bağlantıyı bu cihazda aç.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Şifre sıfırlama isteği gönderilemedi.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCompleteRecovery = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabase) return;
+    if (newPassword.length < 8) {
+      setMessage('Yeni şifre en az 8 karakter olmalı.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage('Yeni şifreler eşleşmiyor.');
+      return;
+    }
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setMessage('Şifren güncellendi. Yeni şifrenle hesabını kullanabilirsin.');
+      onRecoveryComplete();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Şifre güncellenemedi.');
     } finally {
       setBusy(false);
     }
@@ -162,6 +220,48 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               Giriş ve kayıt ekranını etkinleştirmek için ZUNO’ya özel Supabase projesi oluşturulmalı.
               Kurulum adımları depodaki SUPABASE_SETUP.md dosyasında.
             </p>
+          </div>
+        ) : recoveryMode ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-current/10 p-4 text-xs leading-relaxed opacity-75">
+              Hesabın için yeni bir şifre belirle. Bu işlemden sonra diğer cihazlarda yeniden giriş yapman gerekebilir.
+            </div>
+            <form onSubmit={handleCompleteRecovery} className="space-y-3">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-medium opacity-70">Yeni şifre</span>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="En az 8 karakter"
+                  className={'h-12 w-full rounded-xl border px-3 text-sm outline-none ' + field}
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-medium opacity-70">Yeni şifreyi tekrar yaz</span>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="Yeni şifreyi doğrula"
+                  className={'h-12 w-full rounded-xl border px-3 text-sm outline-none ' + field}
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={busy}
+                className="flex h-12 w-full items-center justify-center rounded-2xl text-sm font-bold disabled:opacity-50"
+                style={{ backgroundColor: accentColor, color: '#0b0e16' }}
+              >
+                {busy ? 'Şifre güncelleniyor...' : 'Yeni şifreyi kaydet'}
+              </button>
+            </form>
           </div>
         ) : user ? (
           <div className="space-y-4">
@@ -263,6 +363,16 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               >
                 {busy ? 'İşleniyor...' : mode === 'signup' ? 'Ücretsiz hesap oluştur' : 'ZUNO’ya giriş yap'}
               </button>
+              {mode === 'signin' && (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={busy}
+                  className="w-full py-2 text-xs font-semibold opacity-70 transition-opacity hover:opacity-100 disabled:opacity-40"
+                >
+                  Şifremi unuttum
+                </button>
+              )}
             </form>
           </div>
         )}
