@@ -141,9 +141,18 @@ export default function App() {
   const [cacheMb, setCacheMb] = useState(0);
 
   const activeTrack = useMemo(
-    () => allTracks.find((t) => t.id === activeTrackId) || allTracks[0],
+    () => allTracks.find((track) => track.id === activeTrackId) || allTracks.find((track) => track.audioObjectUrl || track.audioUrl) || allTracks[0],
     [allTracks, activeTrackId]
   );
+
+  useEffect(() => {
+    if (activeTrack.audioObjectUrl || activeTrack.audioUrl) return;
+    const firstPlayableTrack = allTracks.find((track) => track.audioObjectUrl || track.audioUrl);
+    if (!firstPlayableTrack) return;
+    setActiveTrackId(firstPlayableTrack.id);
+    setCurrentTimeSec(0);
+    setQueue((previous) => [firstPlayableTrack.id, ...previous.filter((id) => id !== firstPlayableTrack.id)]);
+  }, [activeTrack, allTracks]);
 
   const prevTrack = useMemo(() => {
     const prevId = getNextTrackId(queue, activeTrack.id, repeat, false, 'prev');
@@ -524,7 +533,7 @@ export default function App() {
         const message = error instanceof Error ? error.message : 'İndirme başarısız oldu.';
         if (controller.signal.aborted) {
           setDownloads((previous) => previous.map((item) => item.id === downloadId
-            ? { ...item, status: 'paused' }
+            ? { ...item, status: 'paused', progress: 0, downloadedMb: 0 }
             : item));
         } else {
           setDownloads((previous) => previous.map((item) => item.id === downloadId
