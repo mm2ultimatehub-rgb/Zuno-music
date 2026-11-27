@@ -69,8 +69,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       setMessage('E-posta ve şifre alanlarını doldur.');
       return;
     }
-    if (password.length < 6) {
-      setMessage('Şifre en az 6 karakter olmalı.');
+    if (password.length < 8) {
+      setMessage('Şifre en az 8 karakter olmalı.');
       return;
     }
 
@@ -339,10 +339,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     type={showPassword ? 'text' : 'password'}
                     autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                     required
-                    minLength={6}
+                    minLength={8}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="En az 6 karakter"
+                    placeholder="En az 8 karakter"
                     className="w-full min-w-0 bg-transparent text-sm outline-none"
                   />
                   <button
