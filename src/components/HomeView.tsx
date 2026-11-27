@@ -28,13 +28,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
   accentColor,
   darkMode,
 }) => {
+  const playableTracks = tracks.filter((track) => Boolean(track.audioUrl || track.audioObjectUrl));
   const recentTracks = recentTrackIds
-    .map((id) => tracks.find((t) => t.id === id))
-    .filter((t): t is Track => Boolean(t));
+    .map((id) => playableTracks.find((track) => track.id === id))
+    .filter((track): track is Track => Boolean(track));
 
-  const personalizedTracks = tracks.slice(0, 6);
-  const popularTracks = [tracks[4], tracks[0], tracks[3], tracks[1], tracks[2]].filter(Boolean);
-  const discoveryTracks = tracks.filter((t) => t.category !== 'podcasts').slice(2, 8);
+  const personalizedTracks = playableTracks.slice(0, 6);
+  const popularTracks = playableTracks.slice(0, 5);
+  const discoveryTracks = playableTracks.filter((track) => track.category !== 'podcasts').slice(5, 11);
 
   const surfaceCls = darkMode
     ? 'bg-[#11151e] hover:bg-[#171d29] border-white/[0.06]'
@@ -46,6 +47,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     contextIds: string[],
     onMore?: () => void
   ) => (
+    items.length === 0 ? null : (
     <section className="space-y-3.5">
       <div className="flex items-center justify-between gap-4">
         <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight">{title}</h2>
@@ -107,10 +109,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
         })}
       </div>
     </section>
+    )
   );
 
-  const featured = tracks[0];
-  const isFeaturedCurrent = activeTrack.id === featured.id;
+  const featured = playableTracks[0] || activeTrack;
+  const hasFeatured = playableTracks.length > 0;
+  const isFeaturedCurrent = hasFeatured && activeTrack.id === featured.id;
 
   return (
     <div className="space-y-8 pb-6">
@@ -144,7 +148,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => onPlayTrack(featured, tracks.map((t) => t.id))}
+                onClick={() => hasFeatured ? onPlayTrack(featured, playableTracks.map((track) => track.id)) : onOpenDiscover()}
                 className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold transition-transform active:scale-[0.97]"
                 style={{ backgroundColor: accentColor, color: '#0b0e16' }}
               >
@@ -153,7 +157,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ) : (
                   <Play className="h-4 w-4 fill-current" />
                 )}
-                <span>{isFeaturedCurrent && isPlaying ? 'Duraklat' : 'Akışı Başlat'}</span>
+                <span>{isFeaturedCurrent && isPlaying ? 'Duraklat' : hasFeatured ? 'Akışı Başlat' : 'Müzik keşfet'}</span>
               </button>
               <button
                 type="button"
@@ -170,9 +174,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </div>
 
-          <button
+          {hasFeatured && <button
             type="button"
-            onClick={() => onPlayTrack(featured, tracks.map((t) => t.id))}
+            onClick={() => onPlayTrack(featured, playableTracks.map((track) => track.id))}
             aria-label={`${featured.title} parçasını oynat`}
             className="group relative flex items-center gap-3.5 rounded-2xl border border-white/10 bg-black/25 p-2.5 pr-4 text-left backdrop-blur-md transition-transform hover:scale-[1.01] sm:w-64 shrink-0"
           >
@@ -189,7 +193,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 {featured.artist} · <span className="tabular-nums">{formatDuration(featured.durationSec)}</span>
               </div>
             </div>
-          </button>
+          </button>}
         </div>
       </section>
 
