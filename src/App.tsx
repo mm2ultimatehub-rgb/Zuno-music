@@ -89,13 +89,13 @@ function loadInitialState(): PersistedState {
       return {
         settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
         favorites: Array.isArray(parsed.favorites)
-          ? parsed.favorites.filter((id) => !/^tr-\\d+$/.test(id))
+          ? parsed.favorites.filter((id) => !/^tr-\d+$/.test(id))
           : [],
         recentIds: Array.isArray(parsed.recentIds)
-          ? parsed.recentIds.filter((id) => !/^tr-\\d+$/.test(id))
+          ? parsed.recentIds.filter((id) => !/^tr-\d+$/.test(id))
           : [],
         playlists: Array.isArray(parsed.playlists)
-          ? parsed.playlists.filter((playlist) => playlist.isUserCreated || playlist.trackIds.some((id) => !/^tr-\\d+$/.test(id)))
+          ? parsed.playlists.filter((playlist) => playlist.isUserCreated || playlist.trackIds.some((id) => !/^tr-\d+$/.test(id)))
           : [],
         // Older releases stored simulated download progress; rebuild this list from real IndexedDB files.
         downloads: [],
