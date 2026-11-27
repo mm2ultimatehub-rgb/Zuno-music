@@ -32,7 +32,7 @@ class ZunoAudioEngine {
       this.bassFilter.gain.value = this.bassBoost * 10;
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = this.volume * 0.25;
+      this.masterGain.gain.value = this.volume;
 
       this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 64;
@@ -55,18 +55,30 @@ class ZunoAudioEngine {
     const audio = new Audio();
     audio.preload = 'auto';
     audio.src = source;
-    audio.volume = this.volume;
     audio.playbackRate = this.playbackRate;
 
-    const context = this.ensureContext();
-    if (context && this.bassFilter) {
-      try {
-        this.mediaSource = context.createMediaElementSource(audio);
-        this.mediaSource.connect(this.bassFilter);
-      } catch {
-        this.mediaSource = null;
+    // Cross-origin audio is played directly so missing CORS headers do not mute it.
+    const isBlobSource = source.startsWith('blob:');
+    let isSameOrigin = false;
+    try {
+      isSameOrigin = new URL(source, window.location.href).origin === window.location.origin;
+    } catch {
+      isSameOrigin = false;
+    }
+    let routedThroughGraph = false;
+    if ((isBlobSource || isSameOrigin) && this.bassFilter) {
+      const context = this.ensureContext();
+      if (context) {
+        try {
+          this.mediaSource = context.createMediaElementSource(audio);
+          this.mediaSource.connect(this.bassFilter);
+          routedThroughGraph = true;
+        } catch {
+          this.mediaSource = null;
+        }
       }
     }
+    audio.volume = routedThroughGraph ? 1 : this.volume;
 
     this.htmlAudio = audio;
     this.currentTrack = track;
@@ -144,9 +156,9 @@ class ZunoAudioEngine {
   public setVolume(value: number): void {
     this.volume = Math.max(0, Math.min(1, value));
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(this.volume * 0.25, this.ctx.currentTime, 0.04);
+      this.masterGain.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.04);
     }
-    if (this.htmlAudio) this.htmlAudio.volume = this.volume;
+    if (this.htmlAudio) this.htmlAudio.volume = this.mediaSource ? 1 : this.volume;
   }
 
   public setBassBoost(value: number): void {
