@@ -115,6 +115,11 @@ async function requestTracks(
         credentials: 'omit',
       });
       if (!response.ok) {
+        if ((response.status === 401 || response.status === 403) && !AUDIUS_API_KEY) {
+          throw new AudiusApiError(
+            'Audius ücretsiz API anahtarı gerekiyor. api.audius.co/plans adresinden anahtar oluşturup VITE_AUDIUS_API_KEY olarak tanımla.'
+          );
+        }
         throw new AudiusApiError(`Müzik kaynağı HTTP ${response.status} yanıtı verdi.`);
       }
 
