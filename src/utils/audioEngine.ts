@@ -1,10 +1,8 @@
 import type { Track } from '../types/music';
 
 /**
- * Dual-mode audio engine for ZUNO Music:
- * 1. For local imported audio files (audioObjectUrl), uses HTMLAudioElement + Web Audio Gain/EQ.
- * 2. For catalog tracks, synthesizes warm, musical polyphonic ambient/electronic grooves via Web Audio API
- *    so playback, seek, volume, bass boost, and live visualizer frequencies work out of the box.
+ * Real audio playback engine. It only plays an actual local file or a direct
+ * audio URL; catalog placeholders are never replaced with generated tones.
  */
 class ZunoAudioEngine {
   private ctx: AudioContext | null = null;
@@ -13,12 +11,11 @@ class ZunoAudioEngine {
   private analyser: AnalyserNode | null = null;
   private htmlAudio: HTMLAudioElement | null = null;
   private mediaSource: MediaElementAudioSourceNode | null = null;
-  private stepTimer: number | null = null;
   private isPlaying = false;
   private currentTrack: Track | null = null;
-  private stepIndex = 0;
   private volume = 0.78;
   private bassBoost = 0.35;
+  private playbackRate = 1;
 
   private ensureContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -27,6 +24,7 @@ class ZunoAudioEngine {
         window.AudioContext ||
         (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return null;
+
       this.ctx = new AudioCtx();
       this.bassFilter = this.ctx.createBiquadFilter();
       this.bassFilter.type = 'lowshelf';
@@ -38,176 +36,158 @@ class ZunoAudioEngine {
 
       this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 64;
-
       this.bassFilter.connect(this.masterGain);
       this.masterGain.connect(this.analyser);
       this.analyser.connect(this.ctx.destination);
     }
+
     if (this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+      void this.ctx.resume().catch(() => undefined);
     }
     return this.ctx;
   }
 
-  public startTrack(track: Track, startSec = 0) {
+  public startTrack(track: Track, startSec = 0): boolean {
+    const source = track.audioObjectUrl || track.audioUrl;
+    if (!source) return false;
+
     this.stopInternal();
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.src = source;
+    audio.volume = this.volume;
+    audio.playbackRate = this.playbackRate;
+
+    const context = this.ensureContext();
+    if (context && this.bassFilter) {
+      try {
+        this.mediaSource = context.createMediaElementSource(audio);
+        this.mediaSource.connect(this.bassFilter);
+      } catch {
+        this.mediaSource = null;
+      }
+    }
+
+    this.htmlAudio = audio;
     this.currentTrack = track;
     this.isPlaying = true;
-    this.stepIndex = 0;
 
-    if (track.audioObjectUrl) {
-      try {
-        const audio = new Audio(track.audioObjectUrl);
-        audio.currentTime = startSec;
-        audio.volume = this.volume;
-        const ctx = this.ensureContext();
-        if (ctx && this.bassFilter) {
-          this.mediaSource = ctx.createMediaElementSource(audio);
-          this.mediaSource.connect(this.bassFilter);
-        }
-        audio.play().catch(() => {});
-        this.htmlAudio = audio;
-        return;
-      } catch {
-        // Fallback to synth if audio element fails
+    const seekToStart = () => {
+      if (startSec > 0 && Number.isFinite(audio.duration)) {
+        audio.currentTime = Math.min(startSec, Math.max(0, audio.duration - 0.1));
       }
+    };
+    audio.addEventListener('loadedmetadata', seekToStart, { once: true });
+    if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) seekToStart();
+
+    const playResult = audio.play();
+    if (playResult) {
+      void playResult.catch(() => {
+        if (this.htmlAudio === audio) this.isPlaying = false;
+      });
     }
-
-    const ctx = this.ensureContext();
-    if (!ctx) return;
-    const stepMs = Math.max(220, Math.round((60 / Math.max(70, track.bpm)) * 500));
-    this.triggerStep(track);
-    this.stepTimer = window.setInterval(() => {
-      if (this.isPlaying && this.currentTrack?.id === track.id) {
-        this.triggerStep(track);
-      }
-    }, stepMs);
+    return true;
   }
 
-  public pause() {
+  public pause(): void {
     this.isPlaying = false;
-    if (this.htmlAudio) {
-      this.htmlAudio.pause();
-    }
-    if (this.stepTimer !== null) {
-      window.clearInterval(this.stepTimer);
-      this.stepTimer = null;
-    }
+    this.htmlAudio?.pause();
   }
 
-  public resume(track: Track, currentSec: number) {
-    if (this.htmlAudio && track.audioObjectUrl) {
-      this.isPlaying = true;
-      this.htmlAudio.currentTime = currentSec;
-      this.htmlAudio.play().catch(() => {});
-      return;
-    }
-    this.startTrack(track, currentSec);
-  }
-
-  public seek(sec: number) {
-    if (this.htmlAudio) {
+  public resume(track: Track, currentSec: number): boolean {
+    if (this.htmlAudio && this.currentTrack?.id === track.id) {
       try {
-        this.htmlAudio.currentTime = sec;
+        if (Number.isFinite(this.htmlAudio.duration) && currentSec > 0) {
+          this.htmlAudio.currentTime = Math.min(currentSec, Math.max(0, this.htmlAudio.duration - 0.1));
+        }
+        this.htmlAudio.playbackRate = this.playbackRate;
+        const result = this.htmlAudio.play();
+        if (result) {
+          void result.catch(() => {
+            this.isPlaying = false;
+          });
+        }
+        this.isPlaying = true;
+        return true;
       } catch {
-        // ignore out of range
+        return false;
       }
     }
+    return this.startTrack(track, currentSec);
   }
 
-  public setVolume(vol: number) {
-    this.volume = Math.max(0, Math.min(1, vol));
+  public seek(seconds: number): void {
+    if (!this.htmlAudio) return;
+    try {
+      this.htmlAudio.currentTime = Math.max(0, seconds);
+    } catch {
+      // The media element may not have metadata yet.
+    }
+  }
+
+  public getCurrentTime(): number {
+    return this.htmlAudio && Number.isFinite(this.htmlAudio.currentTime)
+      ? this.htmlAudio.currentTime
+      : 0;
+  }
+
+  public getDuration(): number {
+    return this.htmlAudio && Number.isFinite(this.htmlAudio.duration)
+      ? this.htmlAudio.duration
+      : 0;
+  }
+
+  public hasEnded(): boolean {
+    return Boolean(this.htmlAudio?.ended);
+  }
+
+  public setVolume(value: number): void {
+    this.volume = Math.max(0, Math.min(1, value));
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(this.volume * 0.25, this.ctx.currentTime, 0.04);
     }
-    if (this.htmlAudio) {
-      this.htmlAudio.volume = this.volume;
-    }
+    if (this.htmlAudio) this.htmlAudio.volume = this.volume;
   }
 
-  public setBassBoost(amount: number) {
-    this.bassBoost = Math.max(0, Math.min(1, amount));
+  public setBassBoost(value: number): void {
+    this.bassBoost = Math.max(0, Math.min(1, value));
     if (this.bassFilter && this.ctx) {
       this.bassFilter.gain.setTargetAtTime(this.bassBoost * 10, this.ctx.currentTime, 0.05);
     }
   }
 
-  public getEnergyLevel(): number {
-    if (!this.isPlaying) return 0;
-    if (!this.analyser) return 0.4;
-    const data = new Uint8Array(this.analyser.frequencyBinCount);
-    this.analyser.getByteFrequencyData(data);
-    let sum = 0;
-    for (let i = 0; i < data.length; i++) sum += data[i];
-    return Math.min(1, sum / (data.length * 160));
+  public setPlaybackRate(value: number): void {
+    this.playbackRate = Math.max(0.5, Math.min(2, value));
+    if (this.htmlAudio) this.htmlAudio.playbackRate = this.playbackRate;
   }
 
-  private stopInternal() {
+  public getEnergyLevel(): number {
+    if (!this.isPlaying) return 0;
+    if (!this.analyser) return 0;
+    const data = new Uint8Array(this.analyser.frequencyBinCount);
+    this.analyser.getByteFrequencyData(data);
+    let total = 0;
+    for (let index = 0; index < data.length; index += 1) total += data[index];
+    return Math.min(1, total / (data.length * 160));
+  }
+
+  private stopInternal(): void {
     this.isPlaying = false;
-    if (this.stepTimer !== null) {
-      window.clearInterval(this.stepTimer);
-      this.stepTimer = null;
-    }
     if (this.htmlAudio) {
       this.htmlAudio.pause();
-      this.htmlAudio.src = '';
+      this.htmlAudio.removeAttribute('src');
+      this.htmlAudio.load();
       this.htmlAudio = null;
     }
     if (this.mediaSource) {
       try {
         this.mediaSource.disconnect();
       } catch {
-        // ignore
+        // Already disconnected.
       }
       this.mediaSource = null;
     }
-  }
-
-  private triggerStep(track: Track) {
-    const ctx = this.ctx;
-    const dest = this.bassFilter;
-    if (!ctx || !dest || ctx.state !== 'running') return;
-
-    const now = ctx.currentTime;
-    const scaleRatios = [1, 1.1892, 1.3348, 1.4983, 1.7818, 2];
-    const ratio = scaleRatios[this.stepIndex % scaleRatios.length];
-    const freq = track.rootNoteHz * ratio;
-
-    // Warm synth pad / pluck
-    const osc = ctx.createOscillator();
-    const subOsc = ctx.createOscillator();
-    const noteGain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-
-    osc.type = this.stepIndex % 2 === 0 ? 'triangle' : 'sine';
-    osc.frequency.setValueAtTime(freq, now);
-
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(track.rootNoteHz * 0.5, now);
-
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(950, now);
-    filter.frequency.exponentialRampToValueAtTime(320, now + 0.45);
-
-    noteGain.gain.setValueAtTime(0.001, now);
-    noteGain.gain.linearRampToValueAtTime(0.28, now + 0.04);
-    noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
-
-    osc.connect(filter);
-    if (this.stepIndex % 4 === 0) {
-      subOsc.connect(filter);
-    }
-    filter.connect(noteGain);
-    noteGain.connect(dest);
-
-    osc.start(now);
-    osc.stop(now + 0.55);
-    if (this.stepIndex % 4 === 0) {
-      subOsc.start(now);
-      subOsc.stop(now + 0.55);
-    }
-
-    this.stepIndex++;
+    this.currentTrack = null;
   }
 }
 
