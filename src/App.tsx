@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type {
   Album,
+  Artist,
   DownloadItem,
   NavTabId,
   Playlist,
@@ -147,6 +148,43 @@ export default function App() {
     () => allTracks.find((track) => track.id === activeTrackId) || allTracks.find((track) => track.audioObjectUrl || track.audioUrl) || allTracks[0],
     [allTracks, activeTrackId]
   );
+
+  const libraryArtists = useMemo(() => {
+    const artists = new Map<string, Artist>();
+    allTracks
+      .filter((track) => track.audioObjectUrl || track.audioUrl)
+      .forEach((track) => {
+        if (!artists.has(track.artist)) {
+          artists.set(track.artist, {
+            id: `artist-${track.provider || 'local'}-${track.artist.toLocaleLowerCase('tr-TR').replace(/[^a-z0-9]+/g, '-')}`,
+            name: track.artist,
+            genre: track.provider === 'audius' ? 'Audius' : 'Yerel müzik',
+            monthlyListeners: track.provider === 'audius' ? 'Audius kataloğu' : 'Cihazındaki müzik',
+            coverUrl: track.coverUrl,
+          });
+        }
+      });
+    return [...artists.values()];
+  }, [allTracks]);
+
+  const libraryAlbums = useMemo(() => {
+    const playableIds = new Set(allTracks.filter((track) => track.audioObjectUrl || track.audioUrl).map((track) => track.id));
+    const availableCatalogAlbums = ZUNO_ALBUMS.filter((album) => album.trackIds.some((id) => playableIds.has(id)));
+    const importedTracks = allTracks.filter((track) => track.isLocal && playableIds.has(track.id));
+    if (importedTracks.length === 0) return availableCatalogAlbums;
+    return [
+      ...availableCatalogAlbums,
+      {
+        id: 'alb-local-import',
+        title: 'İçe Aktarılan Müzikler',
+        artist: 'Yerel Dosyalar',
+        year: new Date().getFullYear(),
+        coverUrl: importedTracks[0].coverUrl,
+        accentColor: settings.accentColor,
+        trackIds: importedTracks.map((track) => track.id),
+      },
+    ];
+  }, [allTracks, settings.accentColor]);
 
   useEffect(() => {
     if (activeTrack.audioObjectUrl || activeTrack.audioUrl) return;
@@ -850,7 +888,7 @@ export default function App() {
             ) : activeTab === 'home' ? (
               <HomeView
                 tracks={allTracks}
-                albums={ZUNO_ALBUMS}
+                albums={libraryAlbums}
                 recentTrackIds={recentIds}
                 activeTrack={activeTrack}
                 isPlaying={isPlaying}
@@ -863,8 +901,8 @@ export default function App() {
             ) : activeTab === 'discover' ? (
               <DiscoverView
                 tracks={allTracks}
-                albums={ZUNO_ALBUMS}
-                artists={ZUNO_ARTISTS}
+                albums={libraryAlbums}
+                artists={libraryArtists}
                 playlists={playlists}
                 downloads={downloads}
                 remoteLoading={audiusLoading}
@@ -911,8 +949,8 @@ export default function App() {
               <LibraryView
                 tracks={ZUNO_TRACKS}
                 localTracks={localTracks}
-                albums={ZUNO_ALBUMS}
-                artists={ZUNO_ARTISTS}
+                albums={libraryAlbums}
+                artists={libraryArtists}
                 playlists={playlists}
                 favoriteIds={favorites}
                 recentTrackIds={recentIds}
