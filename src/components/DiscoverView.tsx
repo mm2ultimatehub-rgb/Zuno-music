@@ -234,11 +234,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       {showTracksSection && (
         <section className="space-y-2">
           <h2 className="font-display text-base font-semibold tracking-tight opacity-90">
-            {category === 'videos'
-              ? 'Videolar'
-              : category === 'podcasts'
-                ? 'Podcastler'
-                : 'Parçalar'}
+            {category === 'podcasts' ? 'Podcastler' : 'Parçalar'}
           </h2>
           {filteredTracks.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-current/15 py-10 text-center text-sm opacity-60">
