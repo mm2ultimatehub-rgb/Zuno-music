@@ -49,6 +49,7 @@ import { AlbumModal } from './components/AlbumModal';
 import { PwaInstallButton } from './components/PwaInstallButton';
 import { AccountModal } from './components/AccountModal';
 import { YouTubePlayerModal } from './components/YouTubePlayerModal';
+import { DynamicIslandPlayer } from './components/DynamicIslandPlayer';
 import { buildZunoCloudState, normalizeZunoCloudState, type CloudSyncStatus } from './utils/cloudSync';
 import { isSupabaseConfigured, supabase } from './utils/supabaseClient';
 import type { RealtimeChannel, User } from '@supabase/supabase-js';
@@ -1586,7 +1587,20 @@ export default function App() {
         </aside>
       </div>
 
-      {/* Mobile / Tablet Bottom Dock: MiniPlayer + FlowingTabs Navigation */}
+      {/* Floating mobile playback island */}
+      {!playerFullscreen && activeTrack.id && (
+        <DynamicIslandPlayer
+          track={activeTrack}
+          isPlaying={isPlaying}
+          currentTimeSec={currentTimeSec}
+          onExpand={() => setPlayerFullscreen(true)}
+          onTogglePlay={handleTogglePlay}
+          onNext={() => handleSkip('next')}
+          accentColor={settings.dynamicPlayerColors ? activeTrack.accentColor : settings.accentColor}
+        />
+      )}
+
+      {/* Mobile / Tablet Bottom Dock: Navigation */}
       <div
         data-testid="mobile-dock"
         className={`lg:hidden fixed bottom-0 left-0 right-0 z-30 px-3 pb-3 pt-4 pointer-events-none bg-gradient-to-t ${
@@ -1596,31 +1610,6 @@ export default function App() {
         }`}
       >
         <div className="mx-auto max-w-md space-y-2 pointer-events-auto">
-          {activeTrack.id && (
-          <MiniPlayer
-            track={activeTrack}
-            prevTrack={prevTrack}
-            nextTrack={nextTrack}
-            isPlaying={isPlaying}
-            isFavorite={favorites.includes(activeTrack.id)}
-            currentTimeSec={currentTimeSec}
-            sleepRemainingSec={sleepRemainingSec}
-            onTogglePlay={handleTogglePlay}
-            onToggleFavorite={() => handleToggleFavorite(activeTrack.id)}
-            onPrev={() => handleSkip('prev')}
-            onNext={() => handleSkip('next')}
-            onSeekRatio={(ratio) => {
-              const nextSec = Math.round(ratio * activeTrack.durationSec);
-              setCurrentTimeSec(nextSec);
-              zunoAudioEngine.seek(nextSec);
-            }}
-            onExpand={() => setPlayerFullscreen(true)}
-            accentColor={
-              settings.dynamicPlayerColors ? activeTrack.accentColor : settings.accentColor
-            }
-            darkMode={darkMode}
-          />
-          )}
           <FlowingTabs
             items={navItems}
             activeId={activeTab}
