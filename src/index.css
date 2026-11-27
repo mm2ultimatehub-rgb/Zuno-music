@@ -60,6 +60,22 @@ body {
   scrollbar-width: none;
 }
 
+@keyframes zuno-island-wave {
+  0%, 100% {
+    transform: scaleY(0.42);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.zuno-island-wave {
+  transform-origin: bottom center;
+  animation: zuno-island-wave 900ms ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
