@@ -1353,6 +1353,8 @@ export default function App() {
                 onOpenDiscover={() => setActiveTab('discover')}
                 accentColor={settings.accentColor}
                 darkMode={darkMode}
+                catalogLoading={youtubeMusicLoading}
+                catalogError={youtubeMusicError}
               />
             ) : activeTab === 'discover' ? (
               <DiscoverView
