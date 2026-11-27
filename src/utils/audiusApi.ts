@@ -22,11 +22,16 @@ interface AudiusTrackResponse {
   };
   downloadable?: boolean;
   isDownloadable?: boolean;
+  is_downloadable?: boolean;
   isStreamable?: boolean | string;
+  is_streamable?: boolean | string;
   isStreamGated?: boolean;
+  is_stream_gated?: boolean;
   releaseDate?: string;
+  release_date?: string;
   genre?: string;
   playCount?: number;
+  play_count?: number;
 }
 
 interface AudiusApiResponse {
@@ -43,7 +48,8 @@ export class AudiusApiError extends Error {
 
 function isStreamable(track: AudiusTrackResponse): boolean {
   const value = track.isStreamable;
-  return value === true || value === 'true' || value === '1';
+  const resolved = value ?? track.is_streamable;
+  return resolved === true || resolved === 'true' || resolved === '1';
 }
 
 function stableAccent(id: string): string {
@@ -56,12 +62,12 @@ function stableAccent(id: string): string {
 }
 
 function mapTrack(item: AudiusTrackResponse, apiBase: string): Track | null {
-  if (!item.id || !item.title || !isStreamable(item) || item.isStreamGated) {
+  if (!item.id || !item.title || !isStreamable(item) || item.isStreamGated || item.is_stream_gated) {
     return null;
   }
 
   const id = String(item.id);
-  const downloadable = item.downloadable === true || item.isDownloadable === true;
+  const downloadable = item.downloadable === true || item.isDownloadable === true || item.is_downloadable === true;
   const artist = item.user?.name || item.user?.handle || 'Audius sanatçısı';
   const coverUrl =
     item.artwork?._480x480 ||
@@ -70,9 +76,8 @@ function mapTrack(item: AudiusTrackResponse, apiBase: string): Track | null {
     '/zuno-icon.svg';
   const audioBase = `${apiBase}/tracks/${encodeURIComponent(id)}`;
   const accentColor = stableAccent(id);
-  const releaseYear = item.releaseDate
-    ? new Date(item.releaseDate).getFullYear()
-    : undefined;
+  const releaseDate = item.releaseDate || item.release_date;
+  const releaseYear = releaseDate ? new Date(releaseDate).getFullYear() : undefined;
 
   return {
     id: `audius-${id}`,
