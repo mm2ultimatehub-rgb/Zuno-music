@@ -1414,7 +1414,7 @@ export default function App() {
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium opacity-60">Şimdi Oynatılıyor</span>
+              <span className="text-xs font-medium opacity-60">{activeTrack.id ? 'Şimdi Oynatılıyor' : 'Oynatıcı hazır'}</span>
               <button
                 type="button"
                 aria-label="Tam ekran oynatıcıyı aç"
@@ -1581,6 +1581,7 @@ export default function App() {
         }`}
       >
         <div className="mx-auto max-w-md space-y-2 pointer-events-auto">
+          {activeTrack.id && (
           <MiniPlayer
             track={activeTrack}
             prevTrack={prevTrack}
@@ -1604,6 +1605,7 @@ export default function App() {
             }
             darkMode={darkMode}
           />
+          )}
           <FlowingTabs
             items={navItems}
             activeId={activeTab}
@@ -1622,7 +1624,7 @@ export default function App() {
       </div>
 
       {/* Tablet / Desktop medium MiniPlayer bar (lg..xl where right sidebar isn't shown) */}
-      <div className="hidden lg:block xl:hidden fixed bottom-4 right-6 z-30 w-96">
+      {activeTrack.id && <div className="hidden lg:block xl:hidden fixed bottom-4 right-6 z-30 w-96">
         <MiniPlayer
           track={activeTrack}
           prevTrack={prevTrack}
@@ -1646,7 +1648,7 @@ export default function App() {
           }
           darkMode={darkMode}
         />
-      </div>
+      </div>}
 
       {/* Fullscreen Immersive Player */}
       <FullscreenPlayer
