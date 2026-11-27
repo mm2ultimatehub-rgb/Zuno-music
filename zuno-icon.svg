@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">ZUNO Music</title>
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="25%" r="82%"><stop offset="0" stop-color="#383d40"/><stop offset=".48" stop-color="#171b1d"/><stop offset="1" stop-color="#050607"/></radialGradient>
+    <linearGradient id="rim" x1="90" y1="65" x2="418" y2="457" gradientUnits="userSpaceOnUse"><stop stop-color="#f4f5f5"/><stop offset=".18" stop-color="#777c7e"/><stop offset=".36" stop-color="#e5e7e8"/><stop offset=".63" stop-color="#555b5e"/><stop offset=".82" stop-color="#c7cbcc"/><stop offset="1" stop-color="#252a2c"/></linearGradient>
+    <linearGradient id="wave" x1="102" y1="173" x2="426" y2="352" gradientUnits="userSpaceOnUse"><stop stop-color="#777d80"/><stop offset=".22" stop-color="#f4f5f5"/><stop offset=".43" stop-color="#7e8588"/><stop offset=".61" stop-color="#f0f2f2"/><stop offset=".82" stop-color="#777d80"/><stop offset="1" stop-color="#d9ddde"/></linearGradient>
+    <linearGradient id="inner" x1="140" y1="105" x2="370" y2="408" gradientUnits="userSpaceOnUse"><stop stop-color="#303638"/><stop offset=".5" stop-color="#0b0e0f"/><stop offset="1" stop-color="#252a2c"/></linearGradient>
+    <filter id="shadow" x="5" y="8" width="502" height="502" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="13"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="#090b0c"/>
+  <circle cx="256" cy="264" r="202" fill="#000" opacity=".72" filter="url(#shadow)"/>
+  <circle cx="256" cy="250" r="207" fill="url(#bg)" stroke="url(#rim)" stroke-width="24"/>
+  <circle cx="256" cy="250" r="178" fill="url(#inner)" stroke="#050708" stroke-width="11"/>
+  <circle cx="256" cy="250" r="191" fill="none" stroke="#fff" stroke-opacity=".23" stroke-width="2"/>
+  <path d="M87 274c15 36 35 51 62 50 38-1 52-44 68-78 16-35 34-36 48 4 12 36 22 91 44 105 25 16 42-38 55-91 10-41 23-72 44-69 27 4 44 45 51 78" fill="none" stroke="#020303" stroke-width="70" stroke-linecap="round" stroke-linejoin="round" opacity=".88"/>
+  <path d="M87 262c15 36 35 51 62 50 38-1 52-44 68-78 16-35 34-36 48 4 12 36 22 91 44 105 25 16 42-38 55-91 10-41 23-72 44-69 27 4 44 45 51 78" fill="none" stroke="url(#wave)" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M87 246c15 36 35 51 62 50 38-1 52-44 68-78 16-35 34-36 48 4 12 36 22 91 44 105 25 16 42-38 55-91 10-41 23-72 44-69 27 4 44 45 51 78" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M93 110c38-39 91-62 150-66" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="4" stroke-linecap="round"/>
+  <path d="M375 424c-39 28-83 42-130 42" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="256" cy="250" r="207" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="2"/>
+</svg>
