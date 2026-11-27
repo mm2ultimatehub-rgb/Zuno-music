@@ -339,7 +339,7 @@ function mapAlbum(value: unknown): Album | null {
     title,
     artist: artistName(item),
     year: Number(item.year) || 0,
-    coverUrl: bestArtwork(item),
+    coverUrl: bestArtwork(item) || './zuno-icon.svg',
     accentColor: '#9b72ff',
     trackIds: [],
   };
