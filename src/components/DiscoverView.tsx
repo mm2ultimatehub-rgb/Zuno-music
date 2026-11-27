@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArtworkImage } from './ArtworkImage';
 import { Clock, Play, Search, Trash2, X, Youtube } from 'lucide-react';
 import type {
   Album,
@@ -263,7 +264,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
                       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-900">
-                        <img
+                        <ArtworkImage
                           src={track.coverUrl}
                           alt={track.title}
                           referrerPolicy="no-referrer"
@@ -349,7 +350,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                   className={`group overflow-hidden rounded-2xl border text-left transition-transform active:scale-[0.99] ${darkMode ? 'border-white/[0.08] bg-[#11151e] hover:bg-[#171d29]' : 'border-slate-200 bg-white hover:bg-slate-50 shadow-sm'}`}
                 >
                   <div className="relative aspect-video overflow-hidden bg-black">
-                    <img src={video.thumbnailUrl} alt={video.title} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                    <ArtworkImage src={video.thumbnailUrl} alt={video.title} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
                     <span className="absolute bottom-2 right-2 rounded-md bg-black/85 px-2 py-1 text-[10px] font-semibold text-white">YouTube</span>
                     <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white shadow-xl"><Play className="h-5 w-5 fill-current ml-0.5" /></span></span>
                   </div>
@@ -380,7 +381,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     : 'border-slate-200 bg-white hover:bg-slate-50 shadow-sm'
                 }`}
               >
-                <img
+                <ArtworkImage
                   src={album.coverUrl}
                   alt={album.title}
                   referrerPolicy="no-referrer"
@@ -412,7 +413,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     : 'border-slate-200 bg-white hover:bg-slate-50 shadow-sm'
                 }`}
               >
-                <img
+                <ArtworkImage
                   src={artist.coverUrl}
                   alt={artist.name}
                   referrerPolicy="no-referrer"
@@ -446,7 +447,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       : 'border-slate-200 bg-white hover:bg-slate-50 shadow-sm'
                   }`}
                 >
-                  <img
+                  <ArtworkImage
                     src={pl.coverUrl}
                     alt={pl.name}
                     referrerPolicy="no-referrer"
