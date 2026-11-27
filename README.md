@@ -11,12 +11,24 @@ ZUNO Music aynı React/TypeScript arayüzünü kullanan çok platformlu bir müz
 ## Uygulama özellikleri
 
 - Cihazdan ses dosyası içe aktarma, yerel kütüphane ve gerçek ses oynatma
-- Audius kataloğunda arama ve desteklenen parçaları akış olarak oynatma
+- Audius canlı kataloğunda arama ve desteklenen parçaları akış olarak oynatma
+- YouTube Data API v3 ile gerçek video araması, küçük resim ve kanal bilgileri; resmî YouTube gömülü oynatıcısında oynatma
+- Gerçek parça seçilene kadar boş/demode oynatıcı gösterimi; sahte katalog, söz ve indirme kayıtları kullanılmaz
+- Desteklenen tarayıcı/WebView ortamlarında Media Session sistem oynatma bilgileri ve medya tuşları
 - ZUNO hesabı, favoriler, çalma listeleri, ayarlar ve arama geçmişi için Supabase eşitlemesi
 - GitHub Releases üzerinden gerçek sürüm denetimi ve Android APK indirme bağlantısı
 - Telefon, tablet ve masaüstü ekranlarına uyumlu arayüz
 
-Yerel ses dosyaları ve çevrimdışı indirmeler cihazda tutulur; otomatik olarak buluta yüklenmez.
+Yerel ses dosyaları ve çevrimdışı indirmeler cihazda tutulur; otomatik olarak buluta yüklenmez. YouTube videoları YouTube'un kendi oynatıcısında açılır; YouTube sesini ayıklama veya YouTube içeriği için çevrimdışı MP3 indirme özelliği sunulmaz.
+
+## YouTube aramasını etkinleştirme
+
+1. Google Cloud projesinde **YouTube Data API v3** hizmetini etkinleştir ve bir API anahtarı oluştur.
+2. Anahtarı yalnızca YouTube Data API v3 için kısıtla. Uygulama içinde kullanılacağı için bir backend sırrı gibi gizli kabul edilmemelidir; istemci paketine dahil edilir.
+3. GitHub deposunda **Settings → Secrets and variables → Actions → New repository secret** bölümünden `VITE_YOUTUBE_API_KEY` adında secret oluştur ve anahtarını ekle.
+4. Yerel geliştirmede aynı anahtarı kök dizindeki `.env` dosyasında `VITE_YOUTUBE_API_KEY` olarak tanımla.
+
+YouTube video araması Keşfet ekranında en az iki karakterli bir sorgu girildiğinde yapılır. Google API kotası ve video sahibinin gömme izni arama sonuçlarını etkileyebilir. Oynatma YouTube'un resmî iframe oynatıcısı üzerinden gerçekleşir; reklamlar ve oynatma kontrolleri YouTube tarafından yönetilir.
 
 ## Geliştirme
 
