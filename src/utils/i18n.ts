@@ -87,9 +87,7 @@ const messages: Record<AppLanguage, Dictionary> = {
     'Sonraki şarkı': 'Next track', 'Tekrar modu: off': 'Repeat mode: off',
     'Tekrar modu: all': 'Repeat mode: all', 'Tekrar modu: one': 'Repeat mode: one',
     'Aramaya uygun sonuç bulunamadı.': 'No results matched your search.',
-    'Henüz sonuç bulunamadı': 'No results found',
     'Kütüphanede filtrele': 'Filter library',
-    'Kotlin Compose': 'Kotlin Compose', 'Yumuşak yıldız': 'Soft star',
     'Albüm · ': 'Album · ', 'Albümü kapat': 'Close album',
   },
   ru: {
@@ -170,7 +168,6 @@ const messages: Record<AppLanguage, Dictionary> = {
     'Sonraki şarkı': 'Следующий трек', 'Tekrar modu: off': 'Повтор: выкл.',
     'Tekrar modu: all': 'Повтор: все', 'Tekrar modu: one': 'Повтор: один',
     'Aramaya uygun sonuç bulunamadı.': 'По вашему запросу ничего не найдено.',
-    'Henüz sonuç bulunamadı': 'Ничего не найдено',
     'Kütüphanede filtrele': 'Фильтр медиатеки',
     'Albüm · ': 'Альбом · ', 'Albümü kapat': 'Закрыть альбом',
   },
