@@ -498,7 +498,7 @@ export async function searchYouTubeMusic(
         ...artistPageItems,
       ].map(mapArtist).filter((item): item is Artist => Boolean(item)));
 
-      const value = { tracks, albums, artists, sections };
+      const value: YouTubeMusicSearchResults = { tracks, albums, artists };
       if (tracks.length === 0 && albums.length === 0 && artists.length === 0) {
         throw new YouTubeMusicError('YouTube Music bu arama için sonuç döndürmedi.');
       }
