@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
+import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
 import { ArtworkImage } from './components/ArtworkImage';
 import {
@@ -734,6 +735,28 @@ export default function App() {
     };
   }, [showToast]);
 
+  const handoffToMainZunoPlayer = useCallback(
+    async (track: Track, reason: string) => {
+      const videoId = track.providerTrackId || '';
+      if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+        showToast(`Arka plan oynatımı başlatılamadı: ${reason}`);
+        return false;
+      }
+
+      try {
+        const handoffUrl = `zuno://play?ids=${encodeURIComponent(videoId)}`;
+        const { completed } = await AppLauncher.openUrl({ url: handoffUrl });
+        if (!completed) throw new Error('ZUNO bağlantısı açılamadı.');
+        showToast('Parça ana ZUNO uygulamasının arka plan oynatıcısına aktarıldı.');
+        return true;
+      } catch {
+        showToast(`Arka plan için ana ZUNO uygulaması v16.0.20 veya üzeri gerekli. Ayrıntı: ${reason}`);
+        return false;
+      }
+    },
+    [showToast]
+  );
+
   const startYouTubeMusicTrack = useCallback(
     async (track: Track, contextIds?: string[]) => {
       const requestId = ++youtubePlaybackRequestRef.current;
@@ -853,14 +876,14 @@ export default function App() {
         const reason = error instanceof Error ? error.message : 'Bilinmeyen akış hatası';
         if (isAndroidNativePlayback()) {
           setSelectedYoutubeVideo(null);
-          showToast(`Android arka plan oynatıcısı başlatılamadı: ${reason}`);
+          void handoffToMainZunoPlayer(track, reason);
         } else {
           setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
           showToast(`Uygulama içi ses akışı açılamadı. Resmî YouTube oynatıcısı açılıyor. ${reason}`);
         }
       }
     },
-    [allTracks, nativePlaybackActive, showToast, youtubeMusicTracks]
+    [allTracks, handoffToMainZunoPlayer, nativePlaybackActive, showToast, youtubeMusicTracks]
   );
 
   const seekPlayback = useCallback((seconds: number) => {
@@ -1132,7 +1155,7 @@ export default function App() {
             if (failedTrack?.provider === 'youtube-music') {
               if (isAndroidNativePlayback()) {
                 setSelectedYoutubeVideo(null);
-                showToast(`Android arka plan oynatıcısı ses akışını açamadı: ${state.errorMessage}`);
+                void handoffToMainZunoPlayer(failedTrack, state.errorMessage);
               } else {
                 setSelectedYoutubeVideo(youtubeVideoFromTrack(failedTrack));
                 showToast(`Ses akışı başarısız oldu. Resmî YouTube oynatıcısı açılıyor. ${state.errorMessage}`);
@@ -1171,7 +1194,7 @@ export default function App() {
       }
     }, nativePlaybackActive ? 650 : 250);
     return () => window.clearInterval(id);
-  }, [activeTrackId, allTracks, isPlaying, nativePlaybackActive, playbackRate, showToast]);
+  }, [activeTrackId, allTracks, handoffToMainZunoPlayer, isPlaying, nativePlaybackActive, playbackRate, showToast]);
 
   // Sleep timer countdown loop
   useEffect(() => {
