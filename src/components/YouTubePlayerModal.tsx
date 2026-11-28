@@ -10,7 +10,7 @@ interface YouTubePlayerModalProps {
   onNext?: () => void;
 }
 
-const YOUTUBE_ORIGIN = 'https://www.youtube-nocookie.com';
+const YOUTUBE_ORIGIN = 'https://www.youtube.com';
 
 export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, onStop, onPrevious, onNext }) => {
   const tr = useTranslation();
@@ -18,6 +18,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
   const [expanded, setExpanded] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerError, setPlayerError] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
   const sendPlayerCommand = useCallback((func: 'playVideo' | 'pauseVideo') => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -30,6 +31,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
     if (!video) return;
     setIsPlaying(false);
     setPlayerError(false);
+    setAutoplayBlocked(false);
     setExpanded(true);
 
     const handlePlayerMessage = (event: MessageEvent) => {
@@ -43,10 +45,16 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
       if (message.event === 'onError') {
         setIsPlaying(false);
         setPlayerError(true);
+        setAutoplayBlocked(false);
+        return;
+      }
+      if (message.event === 'onAutoplayBlocked') {
+        setIsPlaying(false);
+        setAutoplayBlocked(true);
         return;
       }
       const state = message.infoDelivery?.playerState ?? message.info?.playerState ?? message.data;
-      if (state === 1) setIsPlaying(true);
+      if (state === 1) { setIsPlaying(true); setAutoplayBlocked(false); }
       if (state === 2 || state === 0) setIsPlaying(false);
     };
 
@@ -182,6 +190,11 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
           </div>
           {expanded && (
             <div className="space-y-2 px-4 py-3 sm:px-5">
+              {autoplayBlocked && (
+                <p role="status" className="text-xs text-amber-300">
+                  {tr('YouTube otomatik oynatmayı engelledi. Oynatıcıdaki Oynat düğmesine dokun.')}
+                </p>
+              )}
               {playerError && (
                 <p role="alert" className="text-xs text-amber-300">
                   {tr('YouTube oynatıcı bu parçayı başlatamadı. YouTube Music bağlantısını açıp dinlemeyi deneyebilirsin.')}
@@ -200,7 +213,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
                 </a>
               </div>
               {onPrevious && (
-                <button type="button" onClick={onPrevious} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Önceki parça">
+                <button type="button" onClick={onPrevious} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label={tr("Önceki parça")}>
                   <SkipBack className="h-4 w-4" />
                 </button>
               )}
@@ -209,7 +222,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
                 {isPlaying ? tr('Duraklat') : tr('Oynat')}
               </button>
               {onNext && (
-                <button type="button" onClick={onNext} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Sonraki parça">
+                <button type="button" onClick={onNext} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label={tr("Sonraki parça")}>
                   <SkipForward className="h-4 w-4" />
                 </button>
               )}
