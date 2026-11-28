@@ -216,7 +216,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
             transform: `translateX(${dragOffset}px)`,
             transition: dragging ? 'none' : 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)',
           }}
-          aria-label={`Tam ekran oynatıcıyı aç: ${track.title}`}
+          aria-label={`${tr("Tam ekran oynatıcıyı aç")}: ${track.title}`}
           className="flex min-w-0 flex-1 items-center gap-3 text-left touch-pan-y select-none"
         >
           <div
@@ -613,7 +613,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
                     {!current && (
                       <button
                         type="button"
-                        aria-label={`${qt.title} sıradan çıkar`}
+                        aria-label={`${qt.title} ${tr("Sıradan çıkar")}`}
                         onClick={() => onRemoveFromQueue(qt.id)}
                         className="flex h-9 w-9 items-center justify-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"
                       >
@@ -643,7 +643,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                aria-label={isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                aria-label={isFavorite ? tr('Favorilerden çıkar') : tr('Favorilere ekle')}
                 onClick={onToggleFavorite}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/15"
               >
@@ -708,7 +708,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
 
             <button
               type="button"
-              aria-label={isPlaying ? 'Duraklat' : 'Oynat'}
+              aria-label={isPlaying ? tr('Duraklat') : tr('Oynat')}
               onClick={onTogglePlay}
               className="flex h-16 w-16 items-center justify-center rounded-full shadow-xl transition-transform active:scale-95"
               style={{ backgroundColor: activeAccent, color: '#0b0e16' }}
