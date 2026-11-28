@@ -41,7 +41,7 @@ import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
 import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
 import { getTrendingAudiusTracks, searchAudiusTracks } from './utils/audiusApi';
-import { loadYouTubeMusicHome, searchYouTubeMusic, youtubeVideoFromTrack, type YouTubeVideo } from './utils/youtubeMusicApi';
+import { loadYouTubeMusicHome, searchYouTubeMusic, youtubeVideoFromTrack, type YouTubeMusicHomeSection, type YouTubeVideo } from './utils/youtubeMusicApi';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -159,6 +159,7 @@ export default function App() {
   const [youtubeMusicTracks, setYoutubeMusicTracks] = useState<Track[]>([]);
   const [youtubeMusicAlbums, setYoutubeMusicAlbums] = useState<Album[]>([]);
   const [youtubeMusicArtists, setYoutubeMusicArtists] = useState<Artist[]>([]);
+  const [youtubeMusicHomeSections, setYoutubeMusicHomeSections] = useState<YouTubeMusicHomeSection[]>([]);
   const [youtubeMusicLoading, setYoutubeMusicLoading] = useState(false);
   const [youtubeMusicError, setYoutubeMusicError] = useState<string | null>(null);
   const [externalSearchRevision, setExternalSearchRevision] = useState(0);
@@ -603,6 +604,7 @@ export default function App() {
           trackIds: results.tracks.filter((track) => track.albumId === album.id).map((track) => track.id),
         })), previous));
         setYoutubeMusicArtists((previous) => mergeCatalogItems(results.artists, previous));
+        setYoutubeMusicHomeSections(results.sections);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -1437,6 +1439,7 @@ export default function App() {
               />
             ) : activeTab === 'home' ? (
               <HomeView
+                catalogSections={youtubeMusicHomeSections}
                 tracks={allTracks}
                 albums={libraryAlbums}
                 recentTrackIds={recentIds}
