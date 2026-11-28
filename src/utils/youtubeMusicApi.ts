@@ -152,10 +152,7 @@ function installYouTubePlayerInterpreter(): void {
 
   // youtubei.js needs an interpreter for YouTube's public player script to
   // decipher the signed media URL. The script is fetched from YouTube itself.
-  Platform.shim.eval = (data) => {
-    const runPlayerScript = new Function(data.output) as () => unknown;
-    return runPlayerScript();
-  };
+  Platform.shim.eval = async (data) => new Function(data.output)();
 
   playerInterpreterInstalled = true;
 }
