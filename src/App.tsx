@@ -80,7 +80,7 @@ const EMPTY_TRACK: Track = {
   album: 'Müzik keşfet veya dosya ekle',
   albumId: '',
   durationSec: 0,
-  coverUrl: './zuno-icon.svg',
+  coverUrl: '/zuno-icon.svg',
   category: 'songs',
   accentColor: '#9b72ff',
   ambientColor: '#11151e',
