@@ -498,7 +498,7 @@ export async function searchYouTubeMusic(
         ...artistPageItems,
       ].map(mapArtist).filter((item): item is Artist => Boolean(item)));
 
-      const value = { tracks, albums, artists };
+      const value = { tracks, albums, artists, sections };
       if (tracks.length === 0 && albums.length === 0 && artists.length === 0) {
         throw new YouTubeMusicError('YouTube Music bu arama için sonuç döndürmedi.');
       }
@@ -518,9 +518,19 @@ export async function searchYouTubeMusic(
   return pending;
 }
 
+export interface YouTubeMusicHomeSection {
+  id: string;
+  title: string;
+  tracks: Track[];
+}
+
+export interface YouTubeMusicHomeResults extends YouTubeMusicSearchResults {
+  sections: YouTubeMusicHomeSection[];
+}
+
 const HOME_CACHE_TTL_MS = 15 * 60 * 1000;
-let homeCatalogCache: { expiresAt: number; value: YouTubeMusicSearchResults } | null = null;
-let homeCatalogRequest: Promise<YouTubeMusicSearchResults> | null = null;
+let homeCatalogCache: { expiresAt: number; value: YouTubeMusicHomeResults } | null = null;
+let homeCatalogRequest: Promise<YouTubeMusicHomeResults> | null = null;
 
 /**
  * Loads the real YouTube Music home feed and supplements it with two public
@@ -529,7 +539,7 @@ let homeCatalogRequest: Promise<YouTubeMusicSearchResults> | null = null;
  */
 export async function loadYouTubeMusicHome(
   options: { signal?: AbortSignal } = {},
-): Promise<YouTubeMusicSearchResults> {
+): Promise<YouTubeMusicHomeResults> {
   const cached = homeCatalogCache;
   if (cached && cached.expiresAt > Date.now()) return cached.value;
   if (homeCatalogRequest) return homeCatalogRequest;
@@ -559,10 +569,31 @@ export async function loadYouTubeMusicHome(
       : [];
 
     const feedItems = [...feedPageItems, ...feedShelfItems];
-    const feedTracks = feedItems
+    const feedShelves = homeFeed
+      ? iterableItems((homeFeed as unknown as { shelves?: unknown }).shelves)
+      : [];
+    const feedSections = feedShelves
+      .map((shelf, index) => {
+        const shelfRecord = shelf as { title?: unknown };
+        const shelfTracks = uniqueById(
+          collectMusicItems(shelf, acceptedTypes)
+            .filter((item) => item.item_type === 'song' || item.item_type === 'video')
+            .map(mapTrack)
+            .filter((item): item is Track => Boolean(item)),
+        );
+        return {
+          id: 'youtube-home-' + index,
+          title: itemText(shelfRecord.title) || 'Müzik önerileri',
+          tracks: shelfTracks.slice(0, 24),
+        };
+      })
+      .filter((section) => section.tracks.length > 0)
+      .slice(0, 8);
+
+    const feedTracks = uniqueById(feedItems
       .filter((item) => item.item_type === 'song' || item.item_type === 'video')
       .map(mapTrack)
-      .filter((item): item is Track => Boolean(item));
+      .filter((item): item is Track => Boolean(item)));
     const feedAlbums = feedItems
       .filter((item) => item.item_type === 'album')
       .map(mapAlbum)
@@ -574,6 +605,28 @@ export async function loadYouTubeMusicHome(
 
     const popular = popularResult.status === 'fulfilled' ? popularResult.value : null;
     const newMusic = newMusicResult.status === 'fulfilled' ? newMusicResult.value : null;
+    const sections = [...feedSections];
+    if (popular?.tracks.length) {
+      sections.push({
+        id: 'youtube-popular',
+        title: 'Popüler parçalar',
+        tracks: popular.tracks.slice(0, 24),
+      });
+    }
+    if (newMusic?.tracks.length) {
+      sections.push({
+        id: 'youtube-new-music',
+        title: 'Yeni müzikler',
+        tracks: newMusic.tracks.slice(0, 24),
+      });
+    }
+    if (sections.length === 0 && feedTracks.length > 0) {
+      sections.push({
+        id: 'youtube-home-fallback',
+        title: 'YouTube Music ana sayfası',
+        tracks: feedTracks.slice(0, 24),
+      });
+    }
 
     const tracks = uniqueById([
       ...feedTracks,
