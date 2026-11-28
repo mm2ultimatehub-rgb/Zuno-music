@@ -1145,6 +1145,10 @@ export default function App() {
             nativeForegroundWarningTrackRef.current = activeTrackId;
             const foregroundFailedTrack = allTracks.find((item) => item.id === activeTrackId);
             if (foregroundFailedTrack?.provider === 'youtube-music') {
+              setNativePlaybackActive(false);
+              setIsPlaying(false);
+              setActiveTrackId('');
+              void zunoNativePlayback.stop().catch(() => undefined);
               void handoffToMainZunoPlayer(
                 foregroundFailedTrack,
                 'Android medya servisi ön plan durumuna geçemedi.'
