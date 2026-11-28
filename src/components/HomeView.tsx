@@ -163,7 +163,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ) : (
                   <Play className="h-4 w-4 fill-current" />
                 )}
-                <span>{isFeaturedCurrent && isPlaying ? 'Duraklat' : hasFeatured ? 'Akışı Başlat' : 'Müzik keşfet'}</span>
+                <span>{isFeaturedCurrent && isPlaying ? tr('Duraklat') : hasFeatured ? tr('Akışı Başlat') : tr('Müzik keşfet')}</span>
               </button>
               <button
                 type="button"
@@ -222,13 +222,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {playableTracks.length === 0 && (
         <section className={`rounded-3xl border border-dashed px-5 py-8 text-center ${darkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white'}`}>
           <h2 className="font-display text-base font-semibold">
-            {catalogLoading ? '{tr('YouTube Music kataloğu yükleniyor')}' : catalogError ? '{tr('Müzik kataloğuna ulaşılamadı')}' : '{tr('Henüz parça yüklenmedi')}'}
+            {catalogLoading ? tr('YouTube Music kataloğu yükleniyor') : catalogError ? tr('Müzik kataloğuna ulaşılamadı') : tr('Henüz parça yüklenmedi')}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed opacity-65">
             {catalogError || 'YouTube Music üzerinden gerçek şarkıları keşfet veya Kütüphane üzerinden cihazındaki ses dosyalarını ekle.'}
           </p>
           <button type="button" onClick={onOpenDiscover} className="mt-4 rounded-full px-4 py-2 text-sm font-semibold" style={{ backgroundColor: accentColor, color: '#0b0e16' }}>
-            Müzik keşfet
+            {tr('Müzik keşfet')}
           </button>
         </section>
       )}
