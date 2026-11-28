@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ArtworkImage } from './ArtworkImage';
+import { useTranslation } from '../utils/i18n';
 import {
   ChevronDown,
   Gauge,
@@ -63,6 +64,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   accentColor,
   darkMode,
 }) => {
+  const tr = useTranslation();
   const progressPct =
     track.durationSec > 0 ? Math.min(100, (currentTimeSec / track.durationSec) * 100) : 0;
 
@@ -159,7 +161,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
       {/* Interactive scrubbable progress bar */}
       <div
         role="progressbar"
-        aria-label="Şarkı ilerlemesi"
+        aria-label={tr("Şarkı ilerlemesi")}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(progressPct)}
@@ -256,7 +258,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         <div className="flex items-center gap-0.5 shrink-0">
           <button
             type="button"
-            aria-label={isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+            aria-label={isFavorite ? tr('Favorilerden çıkar') : tr('Favorilere ekle')}
             onClick={onToggleFavorite}
             className="flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-90 hover:bg-white/10"
           >
@@ -268,7 +270,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
           </button>
           <button
             type="button"
-            aria-label={isPlaying ? 'Duraklat' : 'Oynat'}
+            aria-label={isPlaying ? tr('Duraklat') : tr('Oynat')}
             onClick={onTogglePlay}
             className="flex h-11 w-11 items-center justify-center rounded-full shadow-md transition-transform active:scale-90"
             style={{ backgroundColor: accentColor, color: '#0b0e16' }}
@@ -281,7 +283,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
           </button>
           <button
             type="button"
-            aria-label="Sonraki şarkı"
+            aria-label={tr("Sonraki şarkı")}
             onClick={onNext}
             className="flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-90 hover:bg-white/10"
           >
@@ -365,6 +367,7 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({
   onPlayFromQueue,
   onRemoveFromQueue,
 }) => {
+  const tr = useTranslation();
   const [centerMode, setCenterMode] = useState<'cover' | 'lyrics' | 'queue'>('cover');
   const [showSleepMenu, setShowSleepMenu] = useState(false);
 
@@ -385,7 +388,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Tam Ekran Müzik Oynatıcı"
+      aria-label={tr("Tam Ekran Müzik Oynatıcı")}
       className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-[#07090e] text-white"
     >
       {/* Dynamic blurred album atmosphere */}
@@ -402,7 +405,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
-            aria-label="Oynatıcıyı küçült"
+            aria-label={tr("Oynatıcıyı küçült")}
             onClick={onClose}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/15"
           >
@@ -429,7 +432,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
               style={centerMode === 'lyrics' ? { backgroundColor: activeAccent } : undefined}
             >
               <Mic2 className="h-3.5 w-3.5" />
-              <span>Sözler</span>
+              <span>{tr("Sözler")}</span>
             </button>
             <button
               type="button"
@@ -440,13 +443,13 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
               style={centerMode === 'queue' ? { backgroundColor: activeAccent } : undefined}
             >
               <ListMusic className="h-3.5 w-3.5" />
-              <span>Sıra</span>
+              <span>{tr("Sıra")}</span>
             </button>
           </div>
 
           <button
             type="button"
-            aria-label="Uyku zamanlayıcısı"
+            aria-label={tr("Uyku zamanlayıcısı")}
             aria-expanded={showSleepMenu}
             onClick={() => setShowSleepMenu((v) => !v)}
             className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
@@ -490,7 +493,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/80">
                 <Gauge className="h-3.5 w-3.5" />
-                <span>Oynatma Hızı</span>
+                <span>{tr("Oynatma Hızı")}</span>
               </span>
               <div className="flex items-center gap-1.5">
                 {SPEED_OPTIONS.map((r) => (
@@ -560,7 +563,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
         ) : centerMode === 'lyrics' ? (
           <div className="my-4 flex flex-1 flex-col items-center justify-center rounded-3xl border border-white/10 bg-black/35 p-7 text-center backdrop-blur-xl">
             <Mic2 className="mb-3 h-8 w-8 text-white/35" />
-            <h2 className="font-display text-base font-semibold">Şarkı sözleri bulunamadı</h2>
+            <h2 className="font-display text-base font-semibold">{tr("Şarkı sözleri bulunamadı")}</h2>
             <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/55">
               Bu parça için doğrulanmış söz bilgisi mevcut değil. ZUNO, yanlış veya uydurma söz göstermeyecek.
             </p>
@@ -574,7 +577,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
               </h2>
               <button
                 type="button"
-                aria-label="Sırayı kapat"
+                aria-label={tr("Sırayı kapat")}
                 onClick={() => setCenterMode('cover')}
                 className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10"
               >
@@ -685,7 +688,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
           <div className="flex items-center justify-between gap-2">
             <button
               type="button"
-              aria-label="Karıştırma modu"
+              aria-label={tr("Karıştırma modu")}
               aria-pressed={shuffle}
               onClick={onToggleShuffle}
               className="flex h-12 w-12 items-center justify-center rounded-full hover:bg-white/10"
@@ -696,7 +699,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
 
             <button
               type="button"
-              aria-label="Önceki şarkı"
+              aria-label={tr("Önceki şarkı")}
               onClick={onPrev}
               className="flex h-12 w-12 items-center justify-center rounded-full hover:bg-white/10"
             >
@@ -719,7 +722,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
 
             <button
               type="button"
-              aria-label="Sonraki şarkı"
+              aria-label={tr("Sonraki şarkı")}
               onClick={onNext}
               className="flex h-12 w-12 items-center justify-center rounded-full hover:bg-white/10"
             >
