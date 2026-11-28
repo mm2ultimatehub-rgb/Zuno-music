@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Maximize2, Pause, Play, SkipBack, SkipForward, X, Youtube } from 'lucide-react';
 import type { YouTubeVideo } from '../utils/youtubeMusicApi';
+import { useTranslation } from '../utils/i18n';
 
 interface YouTubePlayerModalProps {
   video: YouTubeVideo | null;
@@ -12,9 +13,11 @@ interface YouTubePlayerModalProps {
 const YOUTUBE_ORIGIN = 'https://www.youtube-nocookie.com';
 
 export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, onStop, onPrevious, onNext }) => {
+  const tr = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [expanded, setExpanded] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playerError, setPlayerError] = useState(false);
 
   const sendPlayerCommand = useCallback((func: 'playVideo' | 'pauseVideo') => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -25,7 +28,9 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
 
   useEffect(() => {
     if (!video) return;
-    setIsPlaying(true);
+    setIsPlaying(false);
+    setPlayerError(false);
+    setExpanded(true);
 
     const handlePlayerMessage = (event: MessageEvent) => {
       if (event.origin !== YOUTUBE_ORIGIN || event.source !== iframeRef.current?.contentWindow) return;
@@ -35,6 +40,11 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
       }
       if (!data || typeof data !== 'object') return;
       const message = data as { event?: string; info?: { playerState?: number }; infoDelivery?: { playerState?: number }; data?: number };
+      if (message.event === 'onError') {
+        setIsPlaying(false);
+        setPlayerError(true);
+        return;
+      }
       const state = message.infoDelivery?.playerState ?? message.info?.playerState ?? message.data;
       if (state === 1) setIsPlaying(true);
       if (state === 2 || state === 0) setIsPlaying(false);
@@ -55,8 +65,8 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
         artwork: [{ src: video.thumbnailUrl, sizes: '480x360' }],
       });
       session.playbackState = isPlaying ? 'playing' : 'paused';
-      session.setActionHandler('play', () => { sendPlayerCommand('playVideo'); setIsPlaying(true); });
-      session.setActionHandler('pause', () => { sendPlayerCommand('pauseVideo'); setIsPlaying(false); });
+      session.setActionHandler('play', () => { sendPlayerCommand('playVideo'); });
+      session.setActionHandler('pause', () => { sendPlayerCommand('pauseVideo'); });
       if (onPrevious) session.setActionHandler('previoustrack', onPrevious);
       if (onNext) session.setActionHandler('nexttrack', onNext);
     } catch {
@@ -84,7 +94,6 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
   const togglePlayback = () => {
     const next = !isPlaying;
     sendPlayerCommand(next ? 'playVideo' : 'pauseVideo');
-    setIsPlaying(next);
   };
 
   return (
@@ -92,7 +101,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
       {!expanded && (
         <div className="pointer-events-none fixed inset-x-0 z-[48] flex justify-center px-3" style={{ top: 'max(env(safe-area-inset-top), 9px)' }}>
           <div className="pointer-events-auto flex h-[58px] w-full max-w-[370px] items-center gap-2 overflow-hidden rounded-full border border-white/[0.14] bg-[#080a0f]/95 px-2.5 text-white shadow-[0_12px_38px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
-            <button type="button" onClick={() => setExpanded(true)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-label="YouTube oynatıcısını büyüt">
+            <button type="button" onClick={() => setExpanded(true)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-label={tr("YouTube oynatıcısını büyüt")}>
               <img src={video.thumbnailUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[12px] font-semibold">{video.title}</span>
@@ -101,19 +110,19 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
               <Youtube className="h-4 w-4 shrink-0 text-red-500" />
             </button>
             {onPrevious && (
-              <button type="button" onClick={onPrevious} aria-label="Önceki parça" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+              <button type="button" onClick={onPrevious} aria-label={tr("Önceki parça")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
                 <SkipBack className="h-4 w-4" />
               </button>
             )}
-            <button type="button" onClick={togglePlayback} aria-label={isPlaying ? 'YouTube duraklat' : 'YouTube oynat'} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+            <button type="button" onClick={togglePlayback} aria-label={isPlaying ? tr("YouTube duraklat") : tr("YouTube oynat")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
               {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
             </button>
             {onNext && (
-              <button type="button" onClick={onNext} aria-label="Sonraki parça" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+              <button type="button" onClick={onNext} aria-label={tr("Sonraki parça")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
                 <SkipForward className="h-4 w-4" />
               </button>
             )}
-            <button type="button" onClick={onStop} aria-label="YouTube oynatmayı kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+            <button type="button" onClick={onStop} aria-label={tr("YouTube oynatmayı kapat")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -125,7 +134,7 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
         : 'pointer-events-auto fixed bottom-24 right-3 z-[45] w-40 overflow-hidden rounded-xl border border-white/15 bg-black shadow-2xl sm:bottom-5 sm:right-5 sm:w-52'}
         role={expanded ? 'dialog' : undefined}
         aria-modal={expanded ? true : undefined}
-        aria-label={expanded ? 'YouTube oynatıcı' : 'Küçük YouTube oynatıcısı'}
+        aria-label={expanded ? tr("YouTube oynatıcı") : tr("Küçük YouTube oynatıcısı")}
       >
         <div className={expanded
           ? 'w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#0d1119] text-white shadow-2xl'
@@ -140,10 +149,10 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
-                <button type="button" aria-label="Mini oynatıcıya küçült" onClick={() => setExpanded(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15">
+                <button type="button" aria-label={tr("Mini oynatıcıya küçült")} onClick={() => setExpanded(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15">
                   <Maximize2 className="h-4 w-4" />
                 </button>
-                <button type="button" aria-label="Oynatıcıyı kapat" onClick={onStop} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15">
+                <button type="button" aria-label={tr("Oynatıcıyı kapat")} onClick={onStop} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -172,16 +181,22 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
             />
           </div>
           {expanded && (
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
+            <div className="space-y-2 px-4 py-3 sm:px-5">
+              {playerError && (
+                <p role="alert" className="text-xs text-amber-300">
+                  {tr('YouTube oynatıcı bu parçayı başlatamadı. YouTube Music bağlantısını açıp dinlemeyi deneyebilirsin.')}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <span className="block text-xs text-white/55">Resmî YouTube oynatıcısı · Reklamlar ve yayın hakları YouTube tarafından yönetilir</span>
+                <span className="block text-xs text-white/55">{tr("Resmî YouTube oynatıcısı · Reklamlar ve yayın hakları YouTube tarafından yönetilir")}</span>
                 <a
                   href={'https://music.youtube.com/watch?v=' + encodeURIComponent(video.videoId)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 inline-block text-xs font-semibold text-white/80 underline underline-offset-4"
                 >
-                  YouTube Music'te aç
+                  {tr("YouTube Music'te aç")}
                 </a>
               </div>
               {onPrevious && (
@@ -191,13 +206,14 @@ export const YouTubePlayerModal: React.FC<YouTubePlayerModalProps> = ({ video, o
               )}
               <button type="button" onClick={togglePlayback} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/10 px-3 text-xs font-semibold hover:bg-white/15">
                 {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                {isPlaying ? 'Duraklat' : 'Oynat'}
+                {isPlaying ? tr('Duraklat') : tr('Oynat')}
               </button>
               {onNext && (
                 <button type="button" onClick={onNext} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Sonraki parça">
                   <SkipForward className="h-4 w-4" />
                 </button>
               )}
+              </div>
             </div>
           )}
         </div>
