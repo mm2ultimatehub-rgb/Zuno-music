@@ -9,7 +9,7 @@ export const ZunoLogo: React.FC<ZunoLogoProps> = ({ size = 28 }) => {
   return (
     <div className="inline-flex items-center gap-2.5 select-none">
       <img
-        src="./zuno-icon.svg"
+        src="/zuno-icon.svg"
         alt=""
         width={size}
         height={size}
