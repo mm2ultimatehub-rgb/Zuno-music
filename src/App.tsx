@@ -1988,7 +1988,7 @@ export default function App() {
         onSeekRatio={(ratio) => {
           const nextSec = Math.round(ratio * activeTrack.durationSec);
           setCurrentTimeSec(nextSec);
-          zunoAudioEngine.seek(nextSec);
+          seekPlayback(nextSec);
         }}
         onToggleShuffle={() => setShuffle((v) => !v)}
         onCycleRepeat={() =>
