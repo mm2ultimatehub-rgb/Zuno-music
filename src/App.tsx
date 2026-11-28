@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
-import { AppLauncher } from '@capacitor/app-launcher';
-import { Capacitor } from '@capacitor/core';
 import { ArtworkImage } from './components/ArtworkImage';
 import {
   CheckCircle2,
@@ -167,7 +165,6 @@ export default function App() {
   const [youtubeMusicQueue, setYoutubeMusicQueue] = useState<Track[]>([]);
   const [youtubeMusicQueueIndex, setYoutubeMusicQueueIndex] = useState(0);
   const [selectedYoutubeVideo, setSelectedYoutubeVideo] = useState<YouTubeVideo | null>(null);
-  const [nativeZunoPlayback, setNativeZunoPlayback] = useState<{ track: Track; url: string } | null>(null);
   const allTracks = useMemo(() => {
     const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
     const onlineIds = new Set(remoteTracks.map((track) => track.id));
@@ -745,7 +742,6 @@ export default function App() {
       setYoutubeMusicQueue(orderedQueue);
       setYoutubeMusicQueueIndex(0);
       setSelectedYoutubeVideo(null);
-      setNativeZunoPlayback(null);
       if (nativePlaybackActive) void zunoNativePlayback.pause().catch(() => undefined);
       zunoAudioEngine.pause();
       setActiveTrackId(track.id);
@@ -848,7 +844,6 @@ export default function App() {
         return;
       }
       setSelectedYoutubeVideo(null);
-      setNativeZunoPlayback(null);
       setYoutubeMusicQueue([]);
       const playableContextIds = contextIds?.filter((id) => {
         const item = allTracks.find((candidate) => candidate.id === id);
@@ -936,7 +931,6 @@ export default function App() {
       if (nativePlaybackActive) void zunoNativePlayback.stop().catch(() => undefined);
       setNativePlaybackActive(false);
       setSelectedYoutubeVideo(null);
-      setNativeZunoPlayback(null);
       setActiveTrackId(nextTrack.id);
       setCurrentTimeSec(0);
       const started = zunoAudioEngine.startTrack(nextTrack, 0);
@@ -2004,48 +1998,6 @@ export default function App() {
           setQueue((prev) => prev.filter((id) => id !== trId))
         }
       />
-
-      {nativeZunoPlayback && (
-        <div
-          className={`fixed bottom-[88px] left-3 right-3 z-[48] mx-auto flex max-w-md items-center gap-3 rounded-2xl border p-2.5 shadow-2xl backdrop-blur-2xl lg:bottom-5 lg:left-auto lg:right-6 lg:mx-0 lg:w-[340px] ${darkMode ? 'border-white/10 bg-[#11151e]/95 text-white' : 'border-slate-200 bg-white/95 text-slate-900'}`}
-          role="status"
-          aria-live="polite"
-        >
-          <ArtworkImage
-            src={nativeZunoPlayback.track.coverUrl}
-            alt={nativeZunoPlayback.track.title}
-            referrerPolicy="no-referrer"
-            className="h-12 w-12 shrink-0 rounded-xl object-cover"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] opacity-60">ZUNO yerel oynatıcı</div>
-            <div className="truncate text-sm font-semibold">{nativeZunoPlayback.track.title}</div>
-            <div className="truncate text-xs opacity-65">{nativeZunoPlayback.track.artist} · Bildirimin üzerinden kontrol et</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              void AppLauncher.openUrl({ url: nativeZunoPlayback.url }).catch(() => {
-                showToast('ZUNO açılamadı. Uygulamanın yüklü olduğunu kontrol et.');
-              });
-            }}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-current/10"
-            aria-label="ZUNO oynatıcısını aç"
-            title="ZUNO’yu aç"
-          >
-            <ExternalLink className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setNativeZunoPlayback(null)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full opacity-65 hover:opacity-100"
-            aria-label="Oynatma göstergesini kapat"
-            title="Kapat"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
 
       <YouTubePlayerModal
         video={selectedYoutubeVideo}
