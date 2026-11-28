@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { t } from '../utils/i18n';
+import type { AppLanguage } from '../types/music';
 import {
   ArrowLeft,
   Check,
@@ -25,6 +27,7 @@ import { checkForZunoUpdate, type ZunoReleaseCheck } from '../utils/appUpdates';
 
 interface SettingsViewProps {
   settings: ZunoSettings;
+  language: AppLanguage;
   onUpdate: (patch: Partial<ZunoSettings>) => void;
   storageUsedMb: number;
   onClearCache: () => void;
@@ -42,6 +45,7 @@ const KNOB_SHAPES: { id: FluidShapeId; label: string }[] = [
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   settings,
+  language,
   onUpdate,
   storageUsedMb,
   onClearCache,
@@ -117,8 +121,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight">Ayarlar</h1>
-            <p className="text-xs opacity-65">Görünüm, akışkan animasyonlar, ses ve depolama</p>
+            <h1 className="font-display text-2xl font-bold tracking-tight">{t('settings', language)}</h1>
+            <p className="text-xs opacity-65">{t('settingsSubtitle', language)}</p>
           </div>
         </div>
 
@@ -189,6 +193,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </pre>
         </section>
       )}
+
+      {/* App language */}
+      <section className={`rounded-3xl border p-5 space-y-3 ${cardCls}`}>
+        <h2 className="font-display text-base font-semibold">{t('language', language)}</h2>
+        <p className="text-xs opacity-65">{t('languageHint', language)}</p>
+        <div className="grid grid-cols-3 gap-2">
+          {([['tr', 'Türkçe'], ['en', 'English'], ['ru', 'Русский']] as [AppLanguage, string][]).map(([value, label]) => (
+            <button key={value} type="button" onClick={() => onUpdate({ language: value })}
+              aria-pressed={language === value}
+              className={`h-10 rounded-xl border text-sm font-medium transition-colors ${language === value ? 'border-transparent' : 'border-current/15 opacity-75'}`}
+              style={language === value ? { backgroundColor: settings.accentColor, color: '#0b0e16' } : undefined}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Görünüm & Tema */}
       <section className={`rounded-3xl border p-5 space-y-5 ${cardCls}`}>
