@@ -53,8 +53,8 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
         <div>
           <h1 className="font-display text-xl font-bold">{tr('İndirme Yöneticisi')}</h1>
           <p className="mt-1 text-xs opacity-70 tabular-nums">
-            {completedCount} tamamlandı · {activeCount} aktif · {formatFileSize(totalDownloadedMb)}{' '}
-            çevrimdışı depolama
+            {completedCount} {tr('tamamlandı')} · {activeCount} {tr('aktif')} · {formatFileSize(totalDownloadedMb)}{' '}
+            {tr('çevrimdışı depolama')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -79,7 +79,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
         <div className="rounded-3xl border border-dashed border-current/15 py-14 px-4 text-center">
           <p className="text-sm font-medium opacity-75">{tr('Henüz indirilen veya bekleyen parça yok.')}</p>
           <p className="mt-1 text-xs opacity-55">
-            Keşfet ekranından veya oynatıcıdan parçaları çevrimdışı dinlemek için indirebilirsin.
+            {tr('Keşfet ekranından veya oynatıcıdan parçaları çevrimdışı dinlemek için indirebilirsin.')}
           </p>
         </div>
       ) : (
@@ -126,7 +126,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
                       >
                         {item.status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5" />}
                         {item.status === 'error' && <AlertCircle className="h-3.5 w-3.5" />}
-                        <span>{STATUS_LABELS[item.status]}</span>
+                        <span>{tr(STATUS_LABELS[item.status])}</span>
                       </span>
                       <span aria-hidden="true">·</span>
                       <span className="tabular-nums">
