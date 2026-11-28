@@ -178,6 +178,7 @@ export default function App() {
   }, [localTracks, offlineCatalogTracks, remoteTracks, youtubeMusicTracks]);
   const downloadControllersRef = useRef<Map<string, AbortController>>(new Map());
   const youtubePlaybackRequestRef = useRef(0);
+  const nativeForegroundWarningTrackRef = useRef('');
   const handleSkipRef = useRef<(direction: 'next' | 'prev') => void>(() => undefined);
 
   const [favorites, setFavorites] = useState<string[]>(initial.favorites);
@@ -1112,6 +1113,15 @@ export default function App() {
           }
           if (state.playWhenReady) setIsPlaying(true);
           else if (!state.isLoading) setIsPlaying(false);
+
+          if (
+            state.isPlaying &&
+            state.isForegroundService === false &&
+            nativeForegroundWarningTrackRef.current !== activeTrackId
+          ) {
+            nativeForegroundWarningTrackRef.current = activeTrackId;
+            showToast('Android medya servisi arka plan moduna geçemedi. Sistem bildirim iznini ve pil kısıtlamalarını kontrol et.');
+          }
 
           if (state.errorMessage) {
             const failedTrack = allTracks.find((item) => item.id === activeTrackId);
