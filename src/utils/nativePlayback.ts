@@ -6,6 +6,7 @@ export interface NativePlaybackTrack {
   artist: string;
   album?: string;
   artworkUrl?: string;
+  userAgent: string;
 }
 
 export interface NativePlaybackState {
