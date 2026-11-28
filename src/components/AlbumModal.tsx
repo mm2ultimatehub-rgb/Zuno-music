@@ -4,6 +4,7 @@ import { Heart, Play, X } from 'lucide-react';
 import type { Album, DownloadItem, FluidShapeId, Track } from '../types/music';
 import { formatDuration } from '../utils/zunoLogic';
 import { DownloadActionButton } from './fluid/DownloadActionButton';
+import { useTranslation } from '../utils/i18n';
 
 interface AlbumModalProps {
   album: Album | null;
@@ -34,6 +35,7 @@ export const AlbumModal: React.FC<AlbumModalProps> = ({
   knobShape,
   darkMode,
 }) => {
+  const tr = useTranslation();
   if (!album) return null;
 
   const albumTracks = album.trackIds
@@ -44,7 +46,7 @@ export const AlbumModal: React.FC<AlbumModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`${album.title} albüm detayları`}
+      aria-label={`${album.title} ${tr("Albüm detayları")}`}
       className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/65 p-0 sm:p-6 backdrop-blur-sm"
       onClick={onClose}
     >
@@ -65,14 +67,14 @@ export const AlbumModal: React.FC<AlbumModalProps> = ({
               className="h-20 w-20 rounded-2xl object-cover shrink-0 shadow-lg"
             />
             <div className="min-w-0">
-              <div className="text-xs opacity-60">Albüm · {album.year}</div>
+              <div className="text-xs opacity-60">{tr("Albüm")} · {album.year}</div>
               <h2 className="truncate font-display text-xl font-bold">{album.title}</h2>
               <div className="truncate text-sm opacity-75">{album.artist}</div>
             </div>
           </div>
           <button
             type="button"
-            aria-label="Albümü kapat"
+            aria-label={tr("Albümü kapat")}
             onClick={onClose}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10"
           >
@@ -92,7 +94,7 @@ export const AlbumModal: React.FC<AlbumModalProps> = ({
             style={{ backgroundColor: accentColor, color: '#0b0e16' }}
           >
             <Play className="h-4 w-4 fill-current" />
-            <span>Albümü Oynat</span>
+            <span>{tr("Albümü Oynat")}</span>
           </button>
         </div>
 
@@ -124,7 +126,7 @@ export const AlbumModal: React.FC<AlbumModalProps> = ({
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
-                    aria-label={isFav ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                    aria-label={isFav ? tr('Favorilerden çıkar') : tr('Favorilere ekle')}
                     onClick={() => onToggleFavorite(track.id)}
                     className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"
                   >
