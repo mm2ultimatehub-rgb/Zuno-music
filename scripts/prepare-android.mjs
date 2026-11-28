@@ -265,6 +265,7 @@ const pluginSource = `package ${appId}.nativeplayback;
 
 import android.content.Intent;
 import androidx.core.content.ContextCompat;
+import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import com.getcapacitor.JSObject;
@@ -336,6 +337,32 @@ public final class ZunoPlaybackPlugin extends Plugin {
         }
         long positionMs = call.getData().optLong("positionMs", 0L);
         service.getPlayer().seekTo(Math.max(0L, positionMs));
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void setPlaybackRate(PluginCall call) {
+        ZunoPlaybackService service = ZunoPlaybackService.getInstance();
+        if (service == null || service.getPlayer() == null) {
+            call.resolve();
+            return;
+        }
+        double requestedRate = call.getData().optDouble("rate", 1.0);
+        float rate = (float) Math.max(0.5, Math.min(2.0, requestedRate));
+        service.getPlayer().setPlaybackParameters(new PlaybackParameters(rate));
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void setVolume(PluginCall call) {
+        ZunoPlaybackService service = ZunoPlaybackService.getInstance();
+        if (service == null || service.getPlayer() == null) {
+            call.resolve();
+            return;
+        }
+        double requestedVolume = call.getData().optDouble("volume", 1.0);
+        float volume = (float) Math.max(0.0, Math.min(1.0, requestedVolume));
+        service.getPlayer().setVolume(volume);
         call.resolve();
     }
 
