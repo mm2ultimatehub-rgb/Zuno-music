@@ -24,6 +24,8 @@ interface ZunoPlaybackPlugin {
   resume(): Promise<void>;
   stop(): Promise<void>;
   seek(options: { positionMs: number }): Promise<void>;
+  setPlaybackRate(options: { rate: number }): Promise<void>;
+  setVolume(options: { volume: number }): Promise<void>;
   getState(): Promise<NativePlaybackState>;
 }
 
