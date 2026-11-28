@@ -149,4 +149,3 @@ fs.writeFileSync(manifestPath, manifest);
 console.log(`Prepared ZUNO Music Android package v${versionName} (versionCode ${versionCode}).`);
 console.log('Installed Android deep links and adaptive launcher icons.');
 console.log(keystorePath ? 'Release signing configuration enabled.' : 'No release keystore detected; debug build only.');
-console.log(keystorePath ? 'Release signing configuration enabled.' : 'No release keystore detected; debug build only.');
