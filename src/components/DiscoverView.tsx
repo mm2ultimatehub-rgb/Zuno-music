@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../utils/i18n';
 import { ArtworkImage } from './ArtworkImage';
 import { Clock, Play, Search, Trash2, X } from 'lucide-react';
 import type {
@@ -46,16 +47,6 @@ interface DiscoverViewProps {
   darkMode: boolean;
 }
 
-const CATEGORIES: { id: SearchCategory; label: string }[] = [
-  { id: 'all', label: 'Tümü' },
-  { id: 'songs', label: 'Şarkılar' },
-  { id: 'videos', label: 'Videolar' },
-  { id: 'albums', label: 'Albümler' },
-  { id: 'artists', label: 'Sanatçılar' },
-  { id: 'playlists', label: 'Çalma listeleri' },
-  { id: 'podcasts', label: 'Podcastler' },
-];
-
 export const DiscoverView: React.FC<DiscoverViewProps> = ({
   tracks,
   albums,
@@ -84,6 +75,16 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   knobShape,
   darkMode,
 }) => {
+  const tr = useTranslation();
+  const categories: { id: SearchCategory; label: string }[] = [
+    { id: 'all', label: tr('Tümü') },
+    { id: 'songs', label: tr('Şarkılar') },
+    { id: 'videos', label: tr('Videolar') },
+    { id: 'albums', label: tr('Albümler') },
+    { id: 'artists', label: tr('Sanatçılar') },
+    { id: 'playlists', label: tr('Çalma listeleri') },
+    { id: 'podcasts', label: tr('Podcastler') },
+  ];
   const qLower = query.trim().toLocaleLowerCase('tr-TR');
   const playableTracks = tracks.filter((track) => Boolean(
     track.audioUrl || track.audioObjectUrl || track.provider === 'youtube-music'
@@ -141,13 +142,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             type="search"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Şarkı, sanatçı, albüm veya podcast ara..."
+            placeholder={tr("Şarkı, sanatçı, albüm veya podcast ara...")}
             className="w-full bg-transparent text-sm sm:text-base outline-none placeholder:opacity-50"
           />
           {query && (
             <button
               type="button"
-              aria-label="Aramayı temizle"
+              aria-label={tr("Aramayı temizle")}
               onClick={() => onQueryChange('')}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full opacity-60 hover:bg-white/10 hover:opacity-100"
             >
@@ -170,7 +171,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           aria-live="polite"
           className={`rounded-xl border px-3.5 py-3 text-xs ${darkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-white'}`}
         >
-          {remoteLoading ? 'Canlı müzik katalogları aranıyor…' : `Çevrimiçi müzik kaynağı: ${remoteError}`}
+          {remoteLoading ? tr('Canlı müzik katalogları aranıyor…') : `${tr('Çevrimiçi müzik kaynağı:')} ${remoteError}`}
         </div>
       )}
 
@@ -178,14 +179,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       {searchHistory.length > 0 && !query.trim() && (
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium opacity-60">Son aramalar</span>
+            <span className="text-xs font-medium opacity-60">{tr("Son aramalar")}</span>
             <button
               type="button"
               onClick={onClearHistory}
               className="inline-flex items-center gap-1.5 text-xs font-medium opacity-65 hover:opacity-100 transition-opacity"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span>Geçmişi temizle</span>
+              <span>{tr('Geçmişi temizle')}</span>
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -211,7 +212,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       {/* Horizontal Category Filter Tabs (FlowingTabs) */}
       <div className="overflow-x-auto no-scrollbar pb-1">
         <FlowingTabs
-          items={CATEGORIES}
+          items={categories}
           activeId={category}
           onSelect={(id) => onCategoryChange(id as SearchCategory)}
           accentColor={accentColor}
