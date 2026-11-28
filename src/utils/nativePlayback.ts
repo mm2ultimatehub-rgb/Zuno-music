@@ -12,6 +12,9 @@ export interface NativePlaybackState {
   isPlaying: boolean;
   positionMs: number;
   durationMs: number;
+  playWhenReady?: boolean;
+  isLoading?: boolean;
+  isEnded?: boolean;
   errorMessage?: string;
 }
 
