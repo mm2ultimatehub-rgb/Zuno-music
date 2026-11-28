@@ -1106,6 +1106,7 @@ export default function App() {
       setSleepRemainingSec((prev) => {
         if (prev === null) return null;
         if (prev <= 1) {
+          if (nativePlaybackActive) void zunoNativePlayback.pause().catch(() => undefined);
           zunoAudioEngine.pause();
           setIsPlaying(false);
           setSleepTimerMin(null);
@@ -1116,7 +1117,7 @@ export default function App() {
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [isPlaying, sleepRemainingSec !== null, showToast]);
+  }, [isPlaying, nativePlaybackActive, sleepRemainingSec !== null, showToast]);
 
   const handleDownloadTrack = useCallback(
     async (track: Track) => {
