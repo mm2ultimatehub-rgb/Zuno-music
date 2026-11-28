@@ -1121,7 +1121,7 @@ export default function App() {
   const handleDownloadTrack = useCallback(
     async (track: Track) => {
       if (track.provider === 'youtube-music') {
-        showToast('YouTube Music parçaları resmî YouTube oynatıcısında açılır; bu kaynak için indirme desteklenmiyor.');
+        showToast('YouTube Music parçaları ZUNO Music içinde çevrimiçi çalınır. Bu kaynak için çevrim dışı indirme desteklenmiyor; indirmeye izin veren Audius parçalarını ve cihazındaki dosyaları saklayabilirsin.');
         return;
       }
       const existing = downloads.find((item) => item.trackId === track.id);
