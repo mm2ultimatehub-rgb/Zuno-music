@@ -91,7 +91,10 @@ export interface DownloadItem {
   addedAt: number;
 }
 
+export type AppLanguage = 'tr' | 'en' | 'ru';
+
 export interface ZunoSettings {
+  language: AppLanguage;
   theme: ThemeMode;
   accentColor: string;
   tabStyle: TabIndicatorStyle;

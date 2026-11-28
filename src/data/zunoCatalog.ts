@@ -379,6 +379,7 @@ export const INITIAL_DOWNLOADS: DownloadItem[] = [
 ];
 
 export const DEFAULT_SETTINGS: ZunoSettings = {
+  language: 'tr',
   theme: 'dark',
   accentColor: '#9b72ff',
   tabStyle: 'pill',
