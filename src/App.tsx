@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { ArtworkImage } from './components/ArtworkImage';
 import {
   CheckCircle2,
@@ -78,7 +80,7 @@ const EMPTY_TRACK: Track = {
   album: 'Müzik keşfet veya dosya ekle',
   albumId: '',
   durationSec: 0,
-  coverUrl: './zuno-icon.svg',
+  coverUrl: `${import.meta.env.BASE_URL}zuno-icon.svg`,
   category: 'songs',
   accentColor: '#9b72ff',
   ambientColor: '#11151e',
@@ -156,6 +158,7 @@ export default function App() {
   const [youtubeMusicArtists, setYoutubeMusicArtists] = useState<Artist[]>([]);
   const [youtubeMusicLoading, setYoutubeMusicLoading] = useState(false);
   const [youtubeMusicError, setYoutubeMusicError] = useState<string | null>(null);
+  const [externalSearchRevision, setExternalSearchRevision] = useState(0);
   const [youtubeMusicQueue, setYoutubeMusicQueue] = useState<Track[]>([]);
   const [youtubeMusicQueueIndex, setYoutubeMusicQueueIndex] = useState(0);
   const [selectedYoutubeVideo, setSelectedYoutubeVideo] = useState<YouTubeVideo | null>(null);
@@ -314,6 +317,48 @@ export default function App() {
     setToastMessage(msg);
   }, []);
 
+  // Import a recognised track from the native ZUNO Android app.
+  const handleZunoImportUrl = useCallback((rawUrl: string) => {
+    let url: URL;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      return;
+    }
+    if (url.protocol !== 'zunomusic:' || url.hostname !== 'import') return;
+
+    const title = (url.searchParams.get('title') || '').trim().slice(0, 200);
+    const artist = (url.searchParams.get('artist') || '').trim().slice(0, 160);
+    if (!title) {
+      showToast('ZUNO aktarımında parça adı bulunamadı.');
+      return;
+    }
+
+    const query = [title, artist].filter(Boolean).join(' ');
+    setSettingsOpen(false);
+    setActiveTab('discover');
+    setSearchCategory('all');
+    setSearchQuery(query);
+    setYoutubeSearchQuery(query);
+    setExternalSearchRevision((revision) => revision + 1);
+    showToast(`ZUNO'dan alındı: ${title}. YouTube Music'te eşleşmeler aranıyor.`);
+  }, [showToast]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let active = true;
+    const listener = CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+      if (active) handleZunoImportUrl(url);
+    });
+    void CapacitorApp.getLaunchUrl().then((launch) => {
+      if (active && launch?.url) handleZunoImportUrl(launch.url);
+    }).catch(() => undefined);
+
+    return () => {
+      active = false;
+      void listener.then((handle) => handle.remove()).catch(() => undefined);
+    };
+  }, [handleZunoImportUrl]);
 
   // Password recovery links opened by Android are routed through Capacitor's native URL handler.
   useEffect(() => {
@@ -597,7 +642,7 @@ export default function App() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [activeTab, youtubeSearchQuery]);
+  }, [activeTab, youtubeSearchQuery, externalSearchRevision]);
 
   // Restore imported audio and completed offline downloads from persistent IndexedDB storage.
   useEffect(() => {

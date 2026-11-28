@@ -1,6 +1,6 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { invoke } from '@tauri-apps/api/core';
-import { ClientType, Innertube } from 'youtubei.js';
+import { ClientType, Innertube, YTNodes } from 'youtubei.js';
 import type { Album, Artist, Track } from '../types/music';
 
 export interface YouTubeMusicSearchResults {
@@ -27,6 +27,7 @@ type HttpProxyResponse = {
 
 type RawMusicItem = {
   id?: string;
+  item_type?: string;
   name?: string;
   title?: string | { toString(): string };
   subtitle?: string | { toString(): string };
@@ -61,6 +62,55 @@ function iterableItems(value: unknown): unknown[] {
     try { return Array.from(value as Iterable<unknown>); } catch { return []; }
   }
   return [];
+}
+
+/**
+ * ZUNO's native client does not rely on shelf labels alone: it also walks the parsed
+ * InnerTube page and collects typed music rows. This fallback covers changed or
+ * localised response layouts where youtubei.js does not populate response.songs.
+ */
+function collectMusicItems(root: unknown, acceptedTypes: Set<string>): RawMusicItem[] {
+  const results: RawMusicItem[] = [];
+  const seen = new WeakSet<object>();
+  const page = root as {
+    contents_memo?: { getType?: (...types: unknown[]) => unknown[] };
+    continuation_contents_memo?: { getType?: (...types: unknown[]) => unknown[] };
+  } | null;
+
+  for (const memo of [page?.contents_memo, page?.continuation_contents_memo]) {
+    if (!memo?.getType) continue;
+    try {
+      for (const value of memo.getType(YTNodes.MusicResponsiveListItem, YTNodes.MusicTwoRowItem)) {
+        const item = value as RawMusicItem;
+        if (item.item_type && acceptedTypes.has(item.item_type) && titleOf(item)) results.push(item);
+      }
+    } catch {
+      // Older or changed parser memo implementations are handled by the recursive walk below.
+    }
+  }
+
+  const visit = (value: unknown) => {
+    if (!value || typeof value !== 'object' || seen.has(value)) return;
+    seen.add(value);
+    const item = value as RawMusicItem;
+    if (item.item_type && acceptedTypes.has(item.item_type) && titleOf(item)) results.push(item);
+    for (const child of Object.values(value)) visit(child);
+  };
+  visit(root);
+  return results;
+}
+
+function normalizeMusicKey(value: string): string {
+  return value.trim().toLocaleLowerCase().normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+}
+
+function songOrVideoItems(items: RawMusicItem[]): RawMusicItem[] {
+  const matching = items.filter((item) => item.item_type === 'song' || item.item_type === 'video');
+  const songKeys = new Set(matching.filter((item) => item.item_type === 'song')
+    .map((item) => normalizeMusicKey(titleOf(item)) + '::' + normalizeMusicKey(artistName(item))));
+  return matching.filter((item) => item.item_type !== 'video'
+    || !songKeys.has(normalizeMusicKey(titleOf(item)) + '::' + normalizeMusicKey(artistName(item))));
 }
 
 /**
@@ -377,7 +427,7 @@ function mapAlbum(value: unknown): Album | null {
     title,
     artist: artistName(item),
     year: Number(item.year) || 0,
-    coverUrl: bestArtwork(item) || './zuno-icon.svg',
+    coverUrl: bestArtwork(item) || `${import.meta.env.BASE_URL}zuno-icon.svg`,
     accentColor: '#9b72ff',
     trackIds: [],
   };
@@ -385,9 +435,10 @@ function mapAlbum(value: unknown): Album | null {
 
 function mapArtist(value: unknown): Artist | null {
   const item = value as RawMusicItem;
-  const id = browseIdOf(item);
+  const rawId = browseIdOf(item);
+  const id = rawId.startsWith('MPLA') ? rawId.slice(4) : rawId;
   const name = titleOf(item);
-  if (!id || !name) return null;
+  if (!id.startsWith('UC') || !name) return null;
   return {
     id,
     name,
@@ -428,13 +479,23 @@ export async function searchYouTubeMusic(
       ]);
       const mixedResponse = mixed as unknown as MusicSearchResponse;
       const artistResponse = artistsResponse as unknown as MusicSearchResponse | null;
-      const tracks = uniqueById(shelfItems(mixedResponse, 'songs')
-        .map(mapTrack).filter((item): item is Track => Boolean(item)));
-      const albums = uniqueById(shelfItems(mixedResponse, 'albums')
-        .map(mapAlbum).filter((item): item is Album => Boolean(item)));
+      const mixedItems = collectMusicItems(mixedResponse.page, new Set(['artist', 'song', 'video', 'album']));
+      const artistPageItems = artistResponse
+        ? collectMusicItems(artistResponse.page, new Set(['artist']))
+        : [];
+      const tracks = uniqueById([
+        ...shelfItems(mixedResponse, 'songs'),
+        ...songOrVideoItems(mixedItems),
+      ].map(mapTrack).filter((item): item is Track => Boolean(item)));
+      const albums = uniqueById([
+        ...shelfItems(mixedResponse, 'albums'),
+        ...mixedItems.filter((item) => item.item_type === 'album'),
+      ].map(mapAlbum).filter((item): item is Album => Boolean(item)));
       const artists = uniqueById([
         ...shelfItems(mixedResponse, 'artists'),
         ...(artistResponse ? shelfItems(artistResponse, 'artists') : []),
+        ...mixedItems.filter((item) => item.item_type === 'artist'),
+        ...artistPageItems,
       ].map(mapArtist).filter((item): item is Artist => Boolean(item)));
 
       const value = { tracks, albums, artists };

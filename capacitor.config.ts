@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.zuno.music',
+  appId: 'com.mm2vault.zunomusic',
   appName: 'ZUNO Music',
   webDir: 'dist',
   server: {

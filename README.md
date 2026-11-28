@@ -28,6 +28,7 @@ Yeni kararlı sürüm GitHub Releases'e yayımlandığında sayfadaki sürüm nu
 
 ## Uygulama özellikleri
 
+- ZUNO Android uygulamasındaki Müzik Tanıma sonucunu tek dokunuşla bu uygulamaya aktarma; tanınan parça YouTube Music kataloğunda aranır
 - Cihazdan ses dosyası içe aktarma, yerel kütüphane ve gerçek ses oynatma
 - Audius canlı kataloğunda arama ve desteklenen parçaları akış olarak oynatma
 - noFAYZ/zuno projesindeki YouTube Music katalog yaklaşımını uyarlayan gerçek şarkı/albüm/sanatçı araması; kapak ve sanatçı bilgileri YouTube Music'ten alınır
@@ -102,6 +103,6 @@ Her başarılı otomatik veya manuel release GitHub Releases'e imzalı Android A
 
 ## Kimlik doğrulama yönlendirmesi
 
-Android kayıt doğrulama ve şifre kurtarma bağlantıları `zuno://auth/callback` adresine döner. Supabase Authentication → URL Configuration → Redirect URLs bölümünde bu URI'yi izin verilen adreslere ekle. Web/PWA kullanıyorsan yayın origin'ini de ayrı bir Redirect URL olarak ekle.
+Android kayıt doğrulama ve şifre kurtarma bağlantıları `zuno://auth/callback` adresine döner. ZUNO Android müzik tanıma aktarımı `zunomusic://import` şemasını kullanır. İki uygulama farklı Android paket kimlikleriyle kurulur: ZUNO `com.zuno.music`, ZUNO Music `com.mm2vault.zunomusic`. Supabase Authentication → URL Configuration → Redirect URLs bölümünde bu URI'yi izin verilen adreslere ekle. Web/PWA kullanıyorsan yayın origin'ini de ayrı bir Redirect URL olarak ekle.
 
 Supabase projesi, RLS ve Realtime kurulumu için [SUPABASE_SETUP.md](SUPABASE_SETUP.md) dosyasına bak.
