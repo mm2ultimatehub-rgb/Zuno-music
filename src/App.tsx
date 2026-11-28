@@ -849,9 +849,14 @@ export default function App() {
         setIsPlaying(false);
         setNativePlaybackActive(false);
         void zunoNativePlayback.stop().catch(() => undefined);
-        setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
         const reason = error instanceof Error ? error.message : 'Bilinmeyen akış hatası';
-        showToast(`Uygulama içi ses akışı açılamadı. Resmî YouTube oynatıcısı açılıyor. ${reason}`);
+        if (isAndroidNativePlayback()) {
+          setSelectedYoutubeVideo(null);
+          showToast(`Android arka plan oynatıcısı başlatılamadı: ${reason}`);
+        } else {
+          setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
+          showToast(`Uygulama içi ses akışı açılamadı. Resmî YouTube oynatıcısı açılıyor. ${reason}`);
+        }
       }
     },
     [allTracks, nativePlaybackActive, showToast, youtubeMusicTracks]
@@ -1115,8 +1120,13 @@ export default function App() {
             setActiveTrackId('');
             void zunoNativePlayback.stop().catch(() => undefined);
             if (failedTrack?.provider === 'youtube-music') {
-              setSelectedYoutubeVideo(youtubeVideoFromTrack(failedTrack));
-              showToast(`Android ses akışı başarısız oldu. Resmî YouTube oynatıcısı açılıyor. ${state.errorMessage}`);
+              if (isAndroidNativePlayback()) {
+                setSelectedYoutubeVideo(null);
+                showToast(`Android arka plan oynatıcısı ses akışını açamadı: ${state.errorMessage}`);
+              } else {
+                setSelectedYoutubeVideo(youtubeVideoFromTrack(failedTrack));
+                showToast(`Ses akışı başarısız oldu. Resmî YouTube oynatıcısı açılıyor. ${state.errorMessage}`);
+              }
             } else {
               showToast(`Yerel oynatma başarısız oldu: ${state.errorMessage}`);
             }
