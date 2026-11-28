@@ -76,6 +76,21 @@ const messages: Record<AppLanguage, Dictionary> = {
     'YouTube oynat': 'Play YouTube', 'YouTube oynatmayı kapat': 'Close YouTube playback',
     'Mini oynatıcıya küçült': 'Minimize player', 'Oynatıcıyı kapat': 'Close player',
     'YouTube oynatıcı': 'YouTube player', 'Küçük YouTube oynatıcısı': 'Mini YouTube player',
+    'Çevrimiçi müzik kaynağı:': 'Online music source:',
+    'Geri dön': 'Go back', 'Kotlin Compose': 'Kotlin Compose',
+    'Jetpack Compose Bileşen Kodları': 'Jetpack Compose component snippets',
+    'Yumuşak yıldız': 'Soft star', 'Güneş': 'Sun', 'Beşgen': 'Pentagon', 'Altıgen': 'Hexagon', 'Daire': 'Circle',
+    'Şarkı ilerlemesi': 'Track progress', 'Favorilerden çıkar': 'Remove from favorites',
+    'Favorilere ekle': 'Add to favorites', 'Tam Ekran Müzik Oynatıcı': 'Full-screen music player',
+    'Oynatıcıyı küçült': 'Minimize player', 'Sırayı kapat': 'Close queue',
+    'Karıştırma modu': 'Shuffle mode', 'Önceki şarkı': 'Previous track',
+    'Sonraki şarkı': 'Next track', 'Tekrar modu: off': 'Repeat mode: off',
+    'Tekrar modu: all': 'Repeat mode: all', 'Tekrar modu: one': 'Repeat mode: one',
+    'Aramaya uygun sonuç bulunamadı.': 'No results matched your search.',
+    'Henüz sonuç bulunamadı': 'No results found',
+    'Kütüphanede filtrele': 'Filter library',
+    'Kotlin Compose': 'Kotlin Compose', 'Yumuşak yıldız': 'Soft star',
+    'Albüm · ': 'Album · ', 'Albümü kapat': 'Close album',
   },
   ru: {
     home: 'Главная', discover: 'Обзор', library: 'Медиатека', downloads: 'Загрузки',
@@ -144,13 +159,27 @@ const messages: Record<AppLanguage, Dictionary> = {
     'YouTube oynat': 'Воспроизвести YouTube', 'YouTube oynatmayı kapat': 'Закрыть воспроизведение YouTube',
     'Mini oynatıcıya küçült': 'Свернуть плеер', 'Oynatıcıyı kapat': 'Закрыть плеер',
     'YouTube oynatıcı': 'Плеер YouTube', 'Küçük YouTube oynatıcısı': 'Мини-плеер YouTube',
+    'Çevrimiçi müzik kaynağı:': 'Источник музыки в сети:',
+    'Geri dön': 'Назад', 'Kotlin Compose': 'Kotlin Compose',
+    'Jetpack Compose Bileşen Kodları': 'Примеры компонентов Jetpack Compose',
+    'Yumuşak yıldız': 'Мягкая звезда', 'Güneş': 'Солнце', 'Beşgen': 'Пятиугольник', 'Altıgen': 'Шестиугольник', 'Daire': 'Круг',
+    'Şarkı ilerlemesi': 'Прогресс трека', 'Favorilerden çıkar': 'Убрать из избранного',
+    'Favorilere ekle': 'Добавить в избранное', 'Tam Ekran Müzik Oynatıcı': 'Полноэкранный музыкальный плеер',
+    'Oynatıcıyı küçült': 'Свернуть плеер', 'Sırayı kapat': 'Закрыть очередь',
+    'Karıştırma modu': 'Перемешивание', 'Önceki şarkı': 'Предыдущий трек',
+    'Sonraki şarkı': 'Следующий трек', 'Tekrar modu: off': 'Повтор: выкл.',
+    'Tekrar modu: all': 'Повтор: все', 'Tekrar modu: one': 'Повтор: один',
+    'Aramaya uygun sonuç bulunamadı.': 'По вашему запросу ничего не найдено.',
+    'Henüz sonuç bulunamadı': 'Ничего не найдено',
+    'Kütüphanede filtrele': 'Фильтр медиатеки',
+    'Albüm · ': 'Альбом · ', 'Albümü kapat': 'Закрыть альбом',
   },
 };
 
 const LanguageContext = createContext<AppLanguage>('tr');
 
 export function LanguageProvider({ language, children }: PropsWithChildren<{ language: AppLanguage }>) {
-  return <LanguageContext.Provider value={language}>{children}</LanguageContext.Provider>;
+  return React.createElement(LanguageContext.Provider, { value: language }, children);
 }
 
 export function useTranslation() {
