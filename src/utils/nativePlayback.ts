@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 export interface NativePlaybackTrack {
+  id: string;
   url: string;
   title: string;
   artist: string;
@@ -16,11 +17,15 @@ export interface NativePlaybackState {
   playWhenReady?: boolean;
   isLoading?: boolean;
   isEnded?: boolean;
+  currentMediaId?: string;
   errorMessage?: string;
 }
 
 interface ZunoPlaybackPlugin {
   play(track: NativePlaybackTrack): Promise<void>;
+  setQueue(options: { tracks: NativePlaybackTrack[]; startIndex: number }): Promise<void>;
+  setRepeatMode(options: { mode: 'off' | 'one' | 'all' }): Promise<void>;
+  setShuffleMode(options: { enabled: boolean }): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
   stop(): Promise<void>;
