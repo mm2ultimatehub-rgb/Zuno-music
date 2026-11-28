@@ -225,7 +225,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {catalogLoading ? tr('YouTube Music kataloğu yükleniyor') : catalogError ? tr('Müzik kataloğuna ulaşılamadı') : tr('Henüz parça yüklenmedi')}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed opacity-65">
-            {catalogError || 'YouTube Music üzerinden gerçek şarkıları keşfet veya Kütüphane üzerinden cihazındaki ses dosyalarını ekle.'}
+            {catalogError || tr('YouTube Music üzerinden gerçek şarkıları keşfet veya Kütüphane üzerinden cihazındaki ses dosyalarını ekle.')}
           </p>
           <button type="button" onClick={onOpenDiscover} className="mt-4 rounded-full px-4 py-2 text-sm font-semibold" style={{ backgroundColor: accentColor, color: '#0b0e16' }}>
             {tr('Müzik keşfet')}
