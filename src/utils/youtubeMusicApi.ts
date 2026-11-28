@@ -1,6 +1,6 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { invoke } from '@tauri-apps/api/core';
-import { ClientType, Innertube, YTNodes } from 'youtubei.js';
+import { ClientType, Innertube, Platform, YTNodes } from 'youtubei.js';
 import type { Album, Artist, Track } from '../types/music';
 
 export interface YouTubeMusicSearchResults {
@@ -144,6 +144,18 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const searchCache = new Map<string, { expiresAt: number; value: YouTubeMusicSearchResults }>();
 const inFlight = new Map<string, Promise<YouTubeMusicSearchResults>>();
 let clientPromise: Promise<Innertube> | null = null;
+let playbackClientPromise: Promise<Innertube> | null = null;
+let playerInterpreterInstalled = false;
+
+function installYouTubePlayerInterpreter(): void {
+  if (playerInterpreterInstalled) return;
+
+  // youtubei.js needs an interpreter for YouTube's public player script to
+  // decipher the signed media URL. The script is fetched from YouTube itself.
+  Platform.shim.eval = async (data) => new Function(data.output)();
+
+  playerInterpreterInstalled = true;
+}
 
 export class YouTubeMusicError extends Error {
   constructor(message: string) {
@@ -302,6 +314,88 @@ async function getMusicClient(): Promise<Innertube> {
     clientPromise = pending;
   }
   return clientPromise;
+}
+
+/**
+ * Creates a separate YouTube Music session with player-script support.
+ * Catalogue/search calls keep using the faster client above; only playback
+ * pays the cost of loading the current player script.
+ */
+async function getPlaybackClient(): Promise<Innertube> {
+  installYouTubePlayerInterpreter();
+  if (!playbackClientPromise) {
+    const pending = (async () => {
+      const playbackClientType = Capacitor.getPlatform() === 'android'
+        ? ClientType.ANDROID
+        : ClientType.MUSIC;
+      const client = await Innertube.create({
+        fetch: youtubeMusicFetch,
+        client_type: playbackClientType,
+        lang: 'en',
+        location: 'AZ',
+        generate_session_locally: true,
+        retrieve_innertube_config: false,
+        retrieve_player: true,
+      });
+      await refreshMusicClientMetadata(client);
+      return client;
+    })();
+    pending.catch(() => {
+      if (playbackClientPromise === pending) playbackClientPromise = null;
+    });
+    playbackClientPromise = pending;
+  }
+  return playbackClientPromise;
+}
+
+/**
+ * Resolve an online audio format for the in-app player.
+ * YouTube stream URLs are short-lived and must be resolved again when a track
+ * is started; callers should not persist this URL as a permanent catalogue URL.
+ */
+export async function resolveYouTubeMusicAudio(videoId: string): Promise<{
+  url: string;
+  mimeType: string;
+  bitrate: number;
+  userAgent: string;
+}> {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    throw new YouTubeMusicError('YouTube Music parça kimliği geçersiz.');
+  }
+
+  try {
+    const client = await getPlaybackClient();
+    const format = await client.getStreamingData(videoId, {
+      type: 'audio',
+      quality: 'best',
+    });
+    const rawUrl = format.url || await format.decipher(client.session.player);
+    if (!rawUrl) {
+      throw new YouTubeMusicError('YouTube Music bu parça için ses akışı vermedi.');
+    }
+
+    const streamUrl = new URL(rawUrl);
+    if (streamUrl.protocol !== 'https:' || !streamUrl.hostname.endsWith('.googlevideo.com')) {
+      throw new YouTubeMusicError('YouTube Music güvenli bir ses akışı döndürmedi.');
+    }
+
+    if (!format.has_audio) {
+      throw new YouTubeMusicError('YouTube Music seçilen biçimde ses bulunamadı.');
+    }
+
+    return {
+      url: streamUrl.toString(),
+      mimeType: format.mime_type || 'audio/mp4',
+      bitrate: Number(format.bitrate) || 0,
+      userAgent: client.session.context.client.userAgent,
+    };
+  } catch (error) {
+    if (error instanceof YouTubeMusicError) throw error;
+    const reason = error instanceof Error ? error.message : 'Bilinmeyen akış hatası';
+    throw new YouTubeMusicError(
+      'YouTube Music ses akışı çözülemedi: ' + reason
+    );
+  }
 }
 
 function itemText(value: unknown): string {
