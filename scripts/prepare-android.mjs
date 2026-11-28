@@ -265,6 +265,7 @@ const pluginSource = `package ${appId}.nativeplayback;
 
 import android.content.Intent;
 import androidx.core.content.ContextCompat;
+import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -344,6 +345,9 @@ public final class ZunoPlaybackPlugin extends Plugin {
         ExoPlayer player = service == null ? null : service.getPlayer();
         JSObject state = new JSObject();
         state.put("isPlaying", player != null && player.isPlaying());
+        state.put("playWhenReady", player != null && player.getPlayWhenReady());
+        state.put("isLoading", player != null && player.isLoading());
+        state.put("isEnded", player != null && player.getPlaybackState() == Player.STATE_ENDED);
         state.put("positionMs", player == null ? 0L : player.getCurrentPosition());
         long duration = player == null ? 0L : player.getDuration();
         state.put("durationMs", duration < 0L ? 0L : duration);
