@@ -278,7 +278,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>{tr("Özel")}</span>
               <input
                 type="color"
-                aria-label="Özel vurgu rengi"
+                aria-label={tr("Özel vurgu rengi")}
                 value={settings.accentColor}
                 onChange={(e) => onUpdate({ accentColor: e.target.value })}
                 className="h-8 w-9 cursor-pointer rounded-lg border border-current/15 bg-transparent p-0"
