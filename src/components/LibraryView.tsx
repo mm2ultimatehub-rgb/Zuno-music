@@ -269,7 +269,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           shapeId={knobShape}
           compact
           darkMode={darkMode}
-          ariaLabel="Kütüphane bölümleri"
+          ariaLabel={tr("Kütüphane bölümleri")}
         />
       </div>
 
@@ -433,7 +433,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 selectedPlaylist.trackIds
                   .map((id) => allCombinedTracks.find((t) => t.id === id))
                   .filter((t): t is Track => Boolean(t)),
-                'Bu çalma listesi henüz boş.',
+                tr('Bu çalma listesi henüz boş.'),
                 selectedPlaylist.isUserCreated ? selectedPlaylist.id : undefined
               )}
             </div>
@@ -489,14 +489,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                       onClick={() => setShowCreateForm(false)}
                       className="rounded-full px-4 py-2 text-xs font-medium opacity-70 hover:opacity-100"
                     >
-                      İptal
+                      {tr('İptal')}
                     </button>
                     <button
                       type="submit"
                       className="rounded-full px-4 py-2 text-xs font-semibold"
                       style={{ backgroundColor: accentColor, color: '#0b0e16' }}
                     >
-                      Oluştur
+                      {tr('Oluştur')}
                     </button>
                   </div>
                 </form>
@@ -607,7 +607,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             <div className="space-y-0.5">
               <div className="text-sm font-semibold">{tr("Cihazdaki Ses Dosyaları")}</div>
               <div className="text-xs opacity-65">
-                MP3, FLAC, WAV ve M4A dosyalarını cihazından seçerek kalıcı kütüphanene ekle.
+                {tr('MP3, FLAC, WAV ve M4A dosyalarını cihazından seçerek kalıcı kütüphanene ekle.')}
               </div>
             </div>
 
@@ -637,7 +637,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             </div>
           </div>
 
-          {renderTrackCollection(filteredLocalTracks, 'Cihazda yerel ses dosyası bulunamadı.')}
+          {renderTrackCollection(filteredLocalTracks, tr('Cihazda yerel ses dosyası bulunamadı.'))}
         </div>
       )}
     </div>
