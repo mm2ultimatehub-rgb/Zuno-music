@@ -9,6 +9,8 @@ The YouTube Music public-catalogue integration in ZUNO Music is adapted from the
 - License text: [licenses/noFAYZ-zuno-APACHE-2.0.txt](licenses/noFAYZ-zuno-APACHE-2.0.txt)
 - Adapted areas in this repository: `src/utils/youtubeMusicApi.ts`, `src-tauri/src/lib.rs`, and the related search/player wiring.
 
-ZUNO Music's adapted provider is a separate implementation for Capacitor Android and Tauri desktop. It uses public YouTube Music catalogue metadata and opens tracks through YouTube's official embedded player. It does not copy the upstream app's stored Google cookies, private account database, or audio download/stream-extraction implementation.
+ZUNO Music's adapted provider is a separate implementation for Capacitor Android and Tauri desktop. It uses public YouTube Music catalogue metadata and the `youtubei.js` client to resolve a short-lived online audio stream for in-app playback. Android playback is handed to ZUNO Music's own AndroidX Media3 foreground playback service; desktop playback uses the app's audio engine. The official YouTube embedded player remains a fallback when stream resolution or playback is unavailable.
+
+This integration does not copy the upstream app's stored Google cookies, private account database, or audio stream-extraction implementation. YouTube Music streams are not exposed as permanent downloadable files. Offline downloads remain limited to sources that provide an authorized download URL and local files.
 
 The upstream project and this integration are not affiliated with or endorsed by Google or YouTube.
