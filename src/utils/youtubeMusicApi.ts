@@ -1,6 +1,7 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { invoke } from '@tauri-apps/api/core';
 import { ClientType, Innertube, Platform, YTNodes } from 'youtubei.js';
+import { Capacitor } from '@capacitor/core';
 import type { Album, Artist, Track } from '../types/music';
 
 export interface YouTubeMusicSearchResults {
@@ -325,9 +326,12 @@ async function getPlaybackClient(): Promise<Innertube> {
   installYouTubePlayerInterpreter();
   if (!playbackClientPromise) {
     const pending = (async () => {
+      const playbackClientType = Capacitor.getPlatform() === 'android'
+        ? ClientType.ANDROID
+        : ClientType.MUSIC;
       const client = await Innertube.create({
         fetch: youtubeMusicFetch,
-        client_type: ClientType.MUSIC,
+        client_type: playbackClientType,
         lang: 'en',
         location: 'AZ',
         generate_session_locally: true,
@@ -354,6 +358,7 @@ export async function resolveYouTubeMusicAudio(videoId: string): Promise<{
   url: string;
   mimeType: string;
   bitrate: number;
+  userAgent: string;
 }> {
   if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
     throw new YouTubeMusicError('YouTube Music parça kimliği geçersiz.');
@@ -383,6 +388,7 @@ export async function resolveYouTubeMusicAudio(videoId: string): Promise<{
       url: streamUrl.toString(),
       mimeType: format.mime_type || 'audio/mp4',
       bitrate: Number(format.bitrate) || 0,
+      userAgent: client.session.context.client.userAgent,
     };
   } catch (error) {
     if (error instanceof YouTubeMusicError) throw error;
