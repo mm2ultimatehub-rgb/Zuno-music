@@ -17,6 +17,7 @@ export interface NativePlaybackState {
   playWhenReady?: boolean;
   isLoading?: boolean;
   isEnded?: boolean;
+  isForegroundService?: boolean;
   currentMediaId?: string;
   errorMessage?: string;
 }
