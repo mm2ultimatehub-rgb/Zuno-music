@@ -1,7 +1,6 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { invoke } from '@tauri-apps/api/core';
 import { ClientType, Innertube, Platform, YTNodes } from 'youtubei.js';
-import { Capacitor } from '@capacitor/core';
 import type { Album, Artist, Track } from '../types/music';
 
 export interface YouTubeMusicSearchResults {
