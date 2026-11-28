@@ -652,7 +652,7 @@ export async function loadYouTubeMusicHome(
       throw new YouTubeMusicError('YouTube Music ana sayfa kataloğunda şu anda oynatılabilir parça bulunamadı.');
     }
 
-    const value = { tracks, albums, artists };
+    const value: YouTubeMusicHomeResults = { tracks, albums, artists, sections };
     homeCatalogCache = { expiresAt: Date.now() + HOME_CACHE_TTL_MS, value };
     return value;
   })();
