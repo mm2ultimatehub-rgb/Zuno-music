@@ -1545,7 +1545,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setPlayerFullscreen(true)}
-              aria-label={`Tam ekran oynatıcıyı aç: ${activeTrack.title}`}
+              aria-label={`${t("Tam ekran oynatıcıyı aç", settings.language)}: ${activeTrack.title}`}
               className="group relative block w-full aspect-square overflow-hidden rounded-3xl bg-slate-900 shadow-xl"
             >
               <ArtworkImage
@@ -1627,7 +1627,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                aria-label={isPlaying ? 'Duraklat' : 'Oynat'}
+                aria-label={isPlaying ? t('Duraklat', settings.language) : t('Oynat', settings.language)}
                 onClick={handleTogglePlay}
                 className="flex h-13 w-13 items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
                 style={{
