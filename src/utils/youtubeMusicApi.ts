@@ -51,8 +51,44 @@ type MusicSearchResponse = {
   albums?: MusicShelf;
   artists?: MusicShelf;
   playlists?: MusicShelf;
+  contents?: unknown[];
   page?: unknown;
 };
+
+function iterableItems(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object' && Symbol.iterator in value) {
+    try { return Array.from(value as Iterable<unknown>); } catch { return []; }
+  }
+  return [];
+}
+
+/**
+ * youtubei.js 17 identifies its parsed shelves by their display heading.
+ * YouTube Music localizes these headings from the session's hl setting,
+ * while the library's accessors compare English strings. Prefer the typed
+ * accessor, then use the shelf contents with a locale-tolerant title match.
+ */
+function shelfItems(response: MusicSearchResponse, key: 'songs' | 'albums' | 'artists'): unknown[] {
+  const direct = iterableItems(response[key]?.contents);
+  if (direct.length) return direct;
+
+  const labels: Record<typeof key, string[]> = {
+    songs: ['songs', 'song', 'şarkılar', 'şarkı'],
+    albums: ['albums', 'album', 'albümler', 'albüm'],
+    artists: ['artists', 'artist', 'sanatçılar', 'sanatçı'],
+  };
+  for (const section of iterableItems(response.contents)) {
+    if (!section || typeof section !== 'object') continue;
+    const record = section as { title?: unknown; contents?: unknown };
+    const heading = itemText(record.title).toLocaleLowerCase('tr-TR').trim();
+    if (labels[key].includes(heading)) {
+      const contents = iterableItems(record.contents);
+      if (contents.length) return contents;
+    }
+  }
+  return [];
+}
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const searchCache = new Map<string, { expiresAt: number; value: YouTubeMusicSearchResults }>();
@@ -199,7 +235,9 @@ async function getMusicClient(): Promise<Innertube> {
       const client = await Innertube.create({
         fetch: youtubeMusicFetch,
         client_type: ClientType.MUSIC,
-        lang: 'tr',
+        // youtubei.js 17 compares YT Music shelf headings to English strings.
+        // Keep the API UI locale English so its songs/albums/artists accessors work.
+        lang: 'en',
         location: 'AZ',
         generate_session_locally: true,
         retrieve_innertube_config: false,
@@ -390,13 +428,13 @@ export async function searchYouTubeMusic(
       ]);
       const mixedResponse = mixed as unknown as MusicSearchResponse;
       const artistResponse = artistsResponse as unknown as MusicSearchResponse | null;
-      const tracks = uniqueById((mixedResponse.songs?.contents || [])
+      const tracks = uniqueById(shelfItems(mixedResponse, 'songs')
         .map(mapTrack).filter((item): item is Track => Boolean(item)));
-      const albums = uniqueById((mixedResponse.albums?.contents || [])
+      const albums = uniqueById(shelfItems(mixedResponse, 'albums')
         .map(mapAlbum).filter((item): item is Album => Boolean(item)));
       const artists = uniqueById([
-        ...(mixedResponse.artists?.contents || []),
-        ...(artistResponse?.artists?.contents || []),
+        ...shelfItems(mixedResponse, 'artists'),
+        ...(artistResponse ? shelfItems(artistResponse, 'artists') : []),
       ].map(mapArtist).filter((item): item is Artist => Boolean(item)));
 
       const value = { tracks, albums, artists };
