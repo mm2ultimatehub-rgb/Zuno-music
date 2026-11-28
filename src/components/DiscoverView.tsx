@@ -160,7 +160,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             className="h-9 shrink-0 rounded-full px-4 text-xs font-semibold transition-transform active:scale-95"
             style={{ backgroundColor: accentColor, color: '#0b0e16' }}
           >
-            Ara
+            {tr('Ara')}
           </button>
         </div>
       </form>
@@ -220,7 +220,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           shapeId={knobShape}
           compact
           darkMode={darkMode}
-          ariaLabel="Arama kategorileri"
+          ariaLabel={tr("Arama kategorileri")}
         />
       </div>
 
