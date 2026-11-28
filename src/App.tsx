@@ -758,7 +758,7 @@ export default function App() {
               if (completed) {
                 setNativeZunoPlayback({ track, url: nativeUrl });
                 setSelectedYoutubeVideo(null);
-                showToast('Müzik ZUNO’nun yerel arka plan oynatıcısında çalıyor. Bildirimden kontrol edebilirsin.');
+                showToast('Müzik ZUNO’nun yerel oynatıcısına aktarıldı. Kontrolleri bildirimden kullanabilirsin.');
                 return;
               }
               setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
@@ -1897,7 +1897,7 @@ export default function App() {
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-semibold uppercase tracking-[0.12em] opacity-60">ZUNO yerel oynatıcı</div>
             <div className="truncate text-sm font-semibold">{nativeZunoPlayback.track.title}</div>
-            <div className="truncate text-xs opacity-65">{nativeZunoPlayback.track.artist} · Arka planda çalıyor</div>
+            <div className="truncate text-xs opacity-65">{nativeZunoPlayback.track.artist} · Bildirimin üzerinden kontrol et</div>
           </div>
           <button
             type="button"
