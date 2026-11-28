@@ -26,6 +26,7 @@ import type {
 } from '../types/music';
 import { formatDuration, formatFileSize, sortTracks } from '../utils/zunoLogic';
 import { FlowingTabs } from './fluid/FlowingTabs';
+import { useTranslation } from '../utils/i18n';
 
 interface LibraryViewProps {
   tracks: Track[];
@@ -83,6 +84,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   knobShape,
   darkMode,
 }) => {
+  const tr = useTranslation();
   const [section, setSection] = useState<LibrarySection>('favorites');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [sortBy, setSortBy] = useState<SortMode>('recent');
@@ -256,7 +258,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       {/* Sub-navigation FlowingTabs */}
       <div className="overflow-x-auto no-scrollbar pb-1">
         <FlowingTabs
-          items={SECTIONS}
+          items={SECTIONS.map((item) => ({ ...item, label: tr(item.label) }))}
           activeId={section}
           onSelect={(id) => {
             setSection(id as LibrarySection);
@@ -283,15 +285,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             type="search"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Kütüphanede filtrele..."
-            aria-label="Kütüphanede filtrele"
+            placeholder={tr("Kütüphanede filtrele...")}
+            aria-label={tr("Kütüphanede filtrele")}
             className="w-full bg-transparent text-sm outline-none placeholder:opacity-50"
           />
         </div>
 
         <div className="flex items-center gap-2">
           <select
-            aria-label="Sıralama"
+            aria-label={tr("Sıralama")}
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortMode)}
             className={`h-10 rounded-xl border px-3 text-xs font-medium outline-none ${
@@ -300,10 +302,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 : 'border-slate-200 bg-white text-slate-800'
             }`}
           >
-            <option value="recent">Son eklenen</option>
-            <option value="title">Ada göre (A-Z)</option>
-            <option value="artist">Sanatçıya göre</option>
-            <option value="duration">Süreye göre</option>
+            <option value="recent">{tr("Son eklenen")}</option>
+            <option value="title">{tr("Ada göre (A-Z)")}</option>
+            <option value="artist">{tr("Sanatçıya göre")}</option>
+            <option value="duration">{tr("Süreye göre")}</option>
           </select>
 
           <div
@@ -313,7 +315,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           >
             <button
               type="button"
-              aria-label="Liste görünümü"
+              aria-label={tr("Liste görünümü")}
               aria-pressed={viewMode === 'list'}
               onClick={() => setViewMode('list')}
               className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
@@ -324,7 +326,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             </button>
             <button
               type="button"
-              aria-label="Kart görünümü"
+              aria-label={tr("Kart görünümü")}
               aria-pressed={viewMode === 'grid'}
               onClick={() => setViewMode('grid')}
               className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
@@ -367,7 +369,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                       className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 px-3 text-xs font-medium hover:bg-white/10"
                     >
                       <Edit3 className="h-3.5 w-3.5" />
-                      <span>Yeniden adlandır</span>
+                      <span>{tr("Yeniden adlandır")}</span>
                     </button>
                     <button
                       type="button"
@@ -378,7 +380,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                       className="inline-flex h-9 items-center gap-1.5 rounded-full border border-red-400/30 px-3 text-xs font-medium text-red-400 hover:bg-red-500/10"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      <span>Listeyi sil</span>
+                      <span>{tr("Listeyi sil")}</span>
                     </button>
                   </div>
                 )}
@@ -411,7 +413,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                       />
                       <button
                         type="submit"
-                        aria-label="Kaydet"
+                        aria-label={tr("Kaydet")}
                         className="flex h-8 w-8 items-center justify-center rounded-lg"
                         style={{ backgroundColor: accentColor, color: '#0b0e16' }}
                       >
@@ -438,7 +440,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           ) : (
             <>
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-base font-semibold">Çalma listelerin</h2>
+                <h2 className="font-display text-base font-semibold">{tr("Çalma listelerin")}</h2>
                 <button
                   type="button"
                   onClick={() => setShowCreateForm((v) => !v)}
@@ -446,7 +448,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                   style={{ backgroundColor: accentColor, color: '#0b0e16' }}
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Yeni liste</span>
+                  <span>{tr("Yeni liste")}</span>
                 </button>
               </div>
 
@@ -469,16 +471,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     required
                     value={newPlaylistName}
                     onChange={(e) => setNewPlaylistName(e.target.value)}
-                    placeholder="Çalma listesi adı"
-                    aria-label="Çalma listesi adı"
+                    placeholder={tr("Çalma listesi adı")}
+                    aria-label={tr("Çalma listesi adı")}
                     className="w-full rounded-xl border border-current/15 bg-transparent px-3.5 py-2.5 text-sm outline-none"
                   />
                   <input
                     type="text"
                     value={newPlaylistDesc}
                     onChange={(e) => setNewPlaylistDesc(e.target.value)}
-                    placeholder="Kısa açıklama (isteğe bağlı)"
-                    aria-label="Açıklama"
+                    placeholder={tr("Kısa açıklama (isteğe bağlı)")}
+                    aria-label={tr("Açıklama")}
                     className="w-full rounded-xl border border-current/15 bg-transparent px-3.5 py-2.5 text-sm outline-none"
                   />
                   <div className="flex justify-end gap-2">
@@ -603,7 +605,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             }`}
           >
             <div className="space-y-0.5">
-              <div className="text-sm font-semibold">Cihazdaki Ses Dosyaları</div>
+              <div className="text-sm font-semibold">{tr("Cihazdaki Ses Dosyaları")}</div>
               <div className="text-xs opacity-65">
                 MP3, FLAC, WAV ve M4A dosyalarını cihazından seçerek kalıcı kütüphanene ekle.
               </div>
@@ -630,7 +632,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 style={{ backgroundColor: accentColor, color: '#0b0e16' }}
               >
                 <Upload className="h-4 w-4" />
-                <span>Dosya Ekle</span>
+                <span>{tr("Dosya Ekle")}</span>
               </button>
             </div>
           </div>
