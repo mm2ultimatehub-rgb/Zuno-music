@@ -231,6 +231,17 @@ public final class ZunoPlaybackService extends MediaSessionService {
         );
         player.setWakeMode(C.WAKE_MODE_LOCAL);
         mediaSession = new MediaSession.Builder(this, player).build();
+
+        // Refresh the media notification on the actual playing transition.
+        // MediaSessionService promotes itself to a media foreground service
+        // from this notification, which is what keeps audio alive after the
+        // Activity / WebView is destroyed.
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onIsPlayingChanged(boolean isPlaying) {
+                triggerNotificationUpdate();
+            }
+        });
         playerUserAgent = selectedUserAgent;
     }
 
@@ -339,6 +350,7 @@ public final class ZunoPlaybackService extends MediaSessionService {
         // isPlaying() can be false during a short rebuffer; playWhenReady stays
         // true while Media3 is still expected to continue playback.
         boolean shouldKeepPlayback =
+            isPlaybackOngoing() &&
             player != null &&
             player.getMediaItemCount() > 0 &&
             player.getPlayWhenReady() &&
