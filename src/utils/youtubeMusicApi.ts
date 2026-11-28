@@ -518,6 +518,100 @@ export async function searchYouTubeMusic(
   return pending;
 }
 
+const HOME_CACHE_TTL_MS = 15 * 60 * 1000;
+let homeCatalogCache: { expiresAt: number; value: YouTubeMusicSearchResults } | null = null;
+let homeCatalogRequest: Promise<YouTubeMusicSearchResults> | null = null;
+
+/**
+ * Loads the real YouTube Music home feed and supplements it with two public
+ * song shelves when needed. This replaces the old single "popular songs"
+ * search that left the Home screen nearly empty.
+ */
+export async function loadYouTubeMusicHome(
+  options: { signal?: AbortSignal } = {},
+): Promise<YouTubeMusicSearchResults> {
+  const cached = homeCatalogCache;
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  if (homeCatalogRequest) return homeCatalogRequest;
+
+  const pending = (async () => {
+    const client = await getMusicClient();
+    const acceptedTypes = new Set(['artist', 'song', 'video', 'album']);
+    const [feedResult, popularResult, newMusicResult] = await Promise.allSettled([
+      client.music.getHomeFeed(),
+      searchYouTubeMusic('popular songs'),
+      searchYouTubeMusic('new music'),
+    ]);
+
+    if (options.signal?.aborted) {
+      throw new DOMException('The request was cancelled.', 'AbortError');
+    }
+
+    const homeFeed = feedResult.status === 'fulfilled' ? feedResult.value : null;
+    const feedPageItems = homeFeed
+      ? collectMusicItems(homeFeed.page, acceptedTypes)
+      : [];
+    const feedShelfItems = homeFeed
+      ? collectMusicItems(
+          { shelves: iterableItems((homeFeed as unknown as { shelves?: unknown }).shelves) },
+          acceptedTypes,
+        )
+      : [];
+
+    const feedItems = [...feedPageItems, ...feedShelfItems];
+    const feedTracks = feedItems
+      .filter((item) => item.item_type === 'song' || item.item_type === 'video')
+      .map(mapTrack)
+      .filter((item): item is Track => Boolean(item));
+    const feedAlbums = feedItems
+      .filter((item) => item.item_type === 'album')
+      .map(mapAlbum)
+      .filter((item): item is Album => Boolean(item));
+    const feedArtists = feedItems
+      .filter((item) => item.item_type === 'artist')
+      .map(mapArtist)
+      .filter((item): item is Artist => Boolean(item));
+
+    const popular = popularResult.status === 'fulfilled' ? popularResult.value : null;
+    const newMusic = newMusicResult.status === 'fulfilled' ? newMusicResult.value : null;
+
+    const tracks = uniqueById([
+      ...feedTracks,
+      ...(popular?.tracks || []),
+      ...(newMusic?.tracks || []),
+    ]);
+    const albums = uniqueById([
+      ...feedAlbums,
+      ...(popular?.albums || []),
+      ...(newMusic?.albums || []),
+    ]);
+    const artists = uniqueById([
+      ...feedArtists,
+      ...(popular?.artists || []),
+      ...(newMusic?.artists || []),
+    ]);
+
+    if (tracks.length === 0) {
+      const feedError = feedResult.status === 'rejected' ? feedResult.reason : null;
+      const searchError = popularResult.status === 'rejected' ? popularResult.reason : null;
+      const reason = feedError || searchError;
+      if (reason instanceof Error) throw new YouTubeMusicError(reason.message);
+      throw new YouTubeMusicError('YouTube Music ana sayfa kataloğunda şu anda oynatılabilir parça bulunamadı.');
+    }
+
+    const value = { tracks, albums, artists };
+    homeCatalogCache = { expiresAt: Date.now() + HOME_CACHE_TTL_MS, value };
+    return value;
+  })();
+
+  homeCatalogRequest = pending;
+  try {
+    return await pending;
+  } finally {
+    if (homeCatalogRequest === pending) homeCatalogRequest = null;
+  }
+}
+
 export function youtubeVideoFromTrack(track: Track): YouTubeVideo {
   const videoId = track.providerTrackId || '';
   return {
