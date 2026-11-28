@@ -66,7 +66,7 @@ if (keystorePath) {
     + gradle.slice(releaseBlock.open + 1);
 }
 
-const dependenciesBlock = locateBlock(gradle, /\\bdependencies\\s*\\{/);
+const dependenciesBlock = locateBlock(gradle, /\bdependencies\s*\{/);
 if (!dependenciesBlock) throw new Error('Could not locate Android dependencies block.');
 if (!gradle.includes('androidx.media3:media3-exoplayer')) {
   const media3Dependencies = `
@@ -118,7 +118,7 @@ addIntentFilter('android:scheme="zunomusic" android:host="import"', `
 // Install a native Media3 foreground service so Android playback survives
 // screen-off/background transitions and exposes lock-screen media controls.
 const capacitorConfig = fs.readFileSync(path.resolve('capacitor.config.ts'), 'utf8');
-const appIdMatch = capacitorConfig.match(/appId:\\s*['"]([^'"]+)['"]/);
+const appIdMatch = capacitorConfig.match(/appId:\s*['"]([^'"]+)['"]/);
 if (!appIdMatch) throw new Error('Could not read appId from capacitor.config.ts.');
 const appId = appIdMatch[1];
 const packagePath = appId.split('.').join('/');
@@ -137,7 +137,7 @@ for (const permission of permissions) {
   if (!manifest.includes(declaration)) {
     const applicationTag = manifest.indexOf('<application');
     if (applicationTag < 0) throw new Error('Could not locate the Android application manifest element.');
-    manifest = manifest.slice(0, applicationTag) + `    ${declaration}\\n    ` + manifest.slice(applicationTag);
+    manifest = manifest.slice(0, applicationTag) + `    ${declaration}\n    ` + manifest.slice(applicationTag);
   }
 }
 if (!manifest.includes('android:name=".nativeplayback.ZunoPlaybackService"')) {
@@ -365,8 +365,8 @@ if (!fs.existsSync(mainActivityPath)) {
 let mainActivity = fs.readFileSync(mainActivityPath, 'utf8');
 const pluginImport = `import ${appId}.nativeplayback.ZunoPlaybackPlugin;`;
 if (!mainActivity.includes(pluginImport)) {
-  const packageEnd = mainActivity.indexOf('\\n');
-  mainActivity = mainActivity.slice(0, packageEnd + 1) + `\\n${pluginImport}\\n` + mainActivity.slice(packageEnd + 1);
+  const packageEnd = mainActivity.indexOf('\n');
+  mainActivity = mainActivity.slice(0, packageEnd + 1) + `\n${pluginImport}\n` + mainActivity.slice(packageEnd + 1);
 }
 if (!mainActivity.includes('registerPlugin(ZunoPlaybackPlugin.class)')) {
   const classOpen = mainActivity.indexOf('{', mainActivity.indexOf('class MainActivity'));
