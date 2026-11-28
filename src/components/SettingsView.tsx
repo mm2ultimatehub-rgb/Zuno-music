@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { t } from '../utils/i18n';
+import { t, useTranslation } from '../utils/i18n';
 import type { AppLanguage } from '../types/music';
 import {
   ArrowLeft,
@@ -52,6 +52,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onBack,
   darkMode,
 }) => {
+  const tr = useTranslation();
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateMsg, setUpdateMsg] = useState('Yüklü sürüm: v' + (import.meta.env.VITE_APP_VERSION || '0.1.0'));
   const [updateRelease, setUpdateRelease] = useState<ZunoReleaseCheck | null>(null);
@@ -112,7 +113,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            aria-label="Geri dön"
+            aria-label={tr("Geri dön")}
             onClick={onBack}
             className={`flex h-11 w-11 items-center justify-center rounded-full border ${
               darkMode ? 'border-white/10 hover:bg-white/10' : 'border-slate-200 hover:bg-slate-100'
@@ -143,7 +144,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }
         >
           <Code2 className="h-4 w-4" />
-          <span>Kotlin Compose</span>
+          <span>{tr("Kotlin Compose")}</span>
         </button>
       </div>
 
@@ -153,7 +154,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-base font-semibold">
-                Jetpack Compose Bileşen Kodları
+                {tr("Jetpack Compose Bileşen Kodları")}
               </h2>
               <p className="text-xs opacity-65">{activeSnippet.description}</p>
             </div>
@@ -164,7 +165,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               style={{ backgroundColor: settings.accentColor, color: '#0b0e16' }}
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              <span>{copied ? 'Kopyalandı' : 'Kodu Kopyala'}</span>
+              <span>{copied ? tr("Kopyalandı") : tr("Kodu Kopyala")}</span>
             </button>
           </div>
 
@@ -214,12 +215,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <section className={`rounded-3xl border p-5 space-y-5 ${cardCls}`}>
         <div className="flex items-center gap-2.5">
           <Palette className="h-5 w-5" style={{ color: settings.accentColor }} />
-          <h2 className="font-display text-base font-semibold">Görünüm ve Tema</h2>
+          <h2 className="font-display text-base font-semibold">{tr("Görünüm ve Tema")}</h2>
         </div>
 
         {/* Theme Mode */}
         <div className="space-y-2">
-          <div className="text-xs font-medium opacity-70">Tema modu</div>
+          <div className="text-xs font-medium opacity-70">{tr("Tema modu")}</div>
           <div
             className={`grid grid-cols-3 gap-1 rounded-2xl p-1 ${
               darkMode ? 'bg-white/[0.05]' : 'bg-slate-100'
@@ -227,9 +228,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           >
             {(
               [
-                { id: 'dark', label: 'Koyu tema' },
-                { id: 'light', label: 'Açık tema' },
-                { id: 'system', label: 'Sistem' },
+                { id: 'dark', label: tr('Koyu tema') },
+                { id: 'light', label: tr('Açık tema') },
+                { id: 'system', label: tr('Sistem') },
               ] as { id: ThemeMode; label: string }[]
             ).map((opt) => (
               <button
@@ -255,7 +256,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* Accent Swatches */}
         <div className="space-y-2.5">
-          <div className="text-xs font-medium opacity-70">Vurgu rengi</div>
+          <div className="text-xs font-medium opacity-70">{tr("Vurgu rengi")}</div>
           <div className="flex flex-wrap items-center gap-3">
             {ACCENT_SWATCHES.map((sw) => {
               const selected = settings.accentColor.toLowerCase() === sw.hex.toLowerCase();
@@ -274,10 +275,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               );
             })}
             <label className="inline-flex items-center gap-2 text-xs opacity-75 cursor-pointer">
-              <span>Özel</span>
+              <span>{tr("Özel")}</span>
               <input
                 type="color"
-                aria-label="Özel vurgu rengi"
+                aria-label={tr("Özel vurgu rengi")}
                 value={settings.accentColor}
                 onChange={(e) => onUpdate({ accentColor: e.target.value })}
                 className="h-8 w-9 cursor-pointer rounded-lg border border-current/15 bg-transparent p-0"
@@ -289,7 +290,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Tab Indicator & Knob Shape */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <div className="text-xs font-medium opacity-70">Alt sekme göstergesi</div>
+            <div className="text-xs font-medium opacity-70">{tr("Alt sekme göstergesi")}</div>
             <div
               className={`grid grid-cols-3 gap-1 rounded-2xl p-1 ${
                 darkMode ? 'bg-white/[0.05]' : 'bg-slate-100'
@@ -297,9 +298,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             >
               {(
                 [
-                  { id: 'pill', label: 'Akan hap' },
-                  { id: 'shape', label: 'Şekil' },
-                  { id: 'line', label: 'Dalga' },
+                  { id: 'pill', label: tr('Akan hap') },
+                  { id: 'shape', label: tr('Şekil') },
+                  { id: 'line', label: tr('Dalga') },
                 ] as { id: TabIndicatorStyle; label: string }[]
               ).map((m) => (
                 <button
@@ -317,7 +318,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           <div className="space-y-2">
-            <div className="text-xs font-medium opacity-70">Tutamaç ve rozet şekli</div>
+            <div className="text-xs font-medium opacity-70">{tr("Tutamaç ve rozet şekli")}</div>
             <div className="flex flex-wrap gap-1.5">
               {KNOB_SHAPES.map((sh) => (
                 <button
@@ -344,8 +345,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         <div className="flex items-center justify-between gap-4 pt-1 border-t border-current/[0.07]">
           <div>
-            <div className="text-sm font-medium">Dinamik oynatıcı renkleri</div>
-            <div className="text-xs opacity-65">Albüm kapağının renk tonunu oynatıcı arka planına uygula</div>
+            <div className="text-sm font-medium">{tr("Dinamik oynatıcı renkleri")}</div>
+            <div className="text-xs opacity-65">{tr("Albüm kapağının renk tonunu oynatıcı arka planına uygula")}</div>
           </div>
           <MorphingSwitch
             checked={settings.dynamicPlayerColors}
@@ -362,13 +363,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <section className={`rounded-3xl border p-5 space-y-4 ${cardCls}`}>
         <div className="flex items-center gap-2.5">
           <Sliders className="h-5 w-5" style={{ color: settings.accentColor }} />
-          <h2 className="font-display text-base font-semibold">Oynatma Ayarları</h2>
+          <h2 className="font-display text-base font-semibold">{tr("Oynatma Ayarları")}</h2>
         </div>
 
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-sm font-medium">Aralıksız oynatma (Gapless)</div>
-            <div className="text-xs opacity-65">Albüm içi şarkılar arasında boşluk bırakma</div>
+            <div className="text-sm font-medium">{tr("Aralıksız oynatma (Gapless)")}</div>
+            <div className="text-xs opacity-65">{tr("Albüm içi şarkılar arasında boşluk bırakma")}</div>
           </div>
           <MorphingSwitch
             checked={settings.gaplessPlayback}
@@ -382,8 +383,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         <div className="flex items-center justify-between gap-4 pt-3 border-t border-current/[0.07]">
           <div>
-            <div className="text-sm font-medium">Yumuşak geçiş (Crossfade)</div>
-            <div className="text-xs opacity-65">Parça değişimlerinde sesi kademeli karıştır</div>
+            <div className="text-sm font-medium">{tr("Yumuşak geçiş (Crossfade)")}</div>
+            <div className="text-xs opacity-65">{tr("Parça değişimlerinde sesi kademeli karıştır")}</div>
           </div>
           <MorphingSwitch
             checked={settings.crossfadeEnabled}
@@ -398,8 +399,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         <div className="flex items-center justify-between gap-4 pt-3 border-t border-current/[0.07]">
           <div>
-            <div className="text-sm font-medium">Dokunuş titreşimi</div>
-            <div className="text-xs opacity-65">Kontrollere basıldığında hafif dokunsal geri bildirim</div>
+            <div className="text-sm font-medium">{tr("Dokunuş titreşimi")}</div>
+            <div className="text-xs opacity-65">{tr("Kontrollere basıldığında hafif dokunsal geri bildirim")}</div>
           </div>
           <MorphingSwitch
             checked={settings.hapticFeedback}
@@ -416,12 +417,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <section className={`rounded-3xl border p-5 space-y-5 ${cardCls}`}>
         <div className="flex items-center gap-2.5">
           <Volume2 className="h-5 w-5" style={{ color: settings.accentColor }} />
-          <h2 className="font-display text-base font-semibold">Ses Ayarları</h2>
+          <h2 className="font-display text-base font-semibold">{tr("Ses Ayarları")}</h2>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-medium">
-            <span className="opacity-75">Ana ses seviyesi</span>
+            <span className="opacity-75">{tr("Ana ses seviyesi")}</span>
             <span className="tabular-nums font-mono-num">{Math.round(settings.volume * 100)}%</span>
           </div>
           <LiquidSlider
@@ -439,7 +440,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-medium">
-            <span className="opacity-75">Bas güçlendirme (EQ)</span>
+            <span className="opacity-75">{tr("Bas güçlendirme (EQ)")}</span>
             <span className="tabular-nums font-mono-num">{Math.round(settings.bassBoost * 100)}%</span>
           </div>
           <LiquidSlider
@@ -457,8 +458,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         <div className="flex items-center justify-between gap-4 pt-2 border-t border-current/[0.07]">
           <div>
-            <div className="text-sm font-medium">Ses seviyesi normalizasyonu</div>
-            <div className="text-xs opacity-65">Tüm şarkıları dengeli ses yüksekliğinde çal</div>
+            <div className="text-sm font-medium">{tr("Ses seviyesi normalizasyonu")}</div>
+            <div className="text-xs opacity-65">{tr("Tüm şarkıları dengeli ses yüksekliğinde çal")}</div>
           </div>
           <MorphingSwitch
             checked={settings.audioNormalization}
@@ -476,11 +477,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <section className={`rounded-3xl border p-5 space-y-4 ${cardCls}`}>
           <div className="flex items-center gap-2.5">
             <Download className="h-5 w-5" style={{ color: settings.accentColor }} />
-            <h2 className="font-display text-base font-semibold">İndirme Ayarları</h2>
+            <h2 className="font-display text-base font-semibold">{tr("İndirme Ayarları")}</h2>
           </div>
 
           <div className="space-y-2">
-            <div className="text-xs font-medium opacity-70">Ses kalitesi</div>
+            <div className="text-xs font-medium opacity-70">{tr("Ses kalitesi")}</div>
             <div className="grid grid-cols-3 gap-1.5">
               {(['192kbps', '320kbps', 'lossless'] as const).map((q) => (
                 <button
@@ -506,8 +507,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <div className="flex items-center justify-between gap-4 pt-2 border-t border-current/[0.07]">
             <div>
-              <div className="text-sm font-medium">Yalnızca Wi-Fi ile indir</div>
-              <div className="text-xs opacity-65">Mobil veriyi koru</div>
+              <div className="text-sm font-medium">{tr("Yalnızca Wi-Fi ile indir")}</div>
+              <div className="text-xs opacity-65">{tr("Mobil veriyi koru")}</div>
             </div>
             <MorphingSwitch
               checked={settings.wifiOnlyDownloads}
@@ -523,7 +524,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <section className={`rounded-3xl border p-5 space-y-4 ${cardCls}`}>
           <div className="flex items-center gap-2.5">
             <HardDrive className="h-5 w-5" style={{ color: settings.accentColor }} />
-            <h2 className="font-display text-base font-semibold">Depolama ve Güncellemeler</h2>
+            <h2 className="font-display text-base font-semibold">{tr("Depolama ve Güncellemeler")}</h2>
           </div>
 
           <div className="flex items-center justify-between gap-3">
@@ -531,7 +532,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="text-sm font-medium tabular-nums">
                 Kullanılan alan: {formatFileSize(storageUsedMb)}
               </div>
-              <div className="text-xs opacity-65">İndirilenler ve akış önbelleği</div>
+              <div className="text-xs opacity-65">{tr("İndirilenler ve akış önbelleği")}</div>
             </div>
             <button
               type="button"
@@ -558,7 +559,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-current/15 px-3 text-xs font-medium hover:bg-white/10"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
-              <span>Denetle</span>
+              <span>{tr("Denetle")}</span>
             </button>
           </div>
 
@@ -581,7 +582,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 className="inline-flex h-9 items-center gap-1.5 rounded-full border border-current/15 px-3.5 text-xs font-medium hover:bg-white/10"
               >
                 <Info className="h-3.5 w-3.5" />
-                <span>Sürüm notları</span>
+                <span>{tr("Sürüm notları")}</span>
               </button>
             </div>
           )}

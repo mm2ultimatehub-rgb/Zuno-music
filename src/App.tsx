@@ -15,7 +15,7 @@ import {
   SkipForward,
   UserRound,
 } from 'lucide-react';
-import { t } from './utils/i18n';
+import { LanguageProvider, t } from './utils/i18n';
 import type {
   Album,
   Artist,
@@ -1136,7 +1136,8 @@ export default function App() {
     downloads.reduce((sum, item) => sum + item.downloadedMb, 0);
 
   return (
-    <div
+    <LanguageProvider language={settings.language}>
+      <div
       className={`min-h-screen transition-colors duration-300 ${
         darkMode ? 'bg-[#07090e] text-[#f2f5f9]' : 'bg-[#f4f6fa] text-[#0c1118]'
       }`}
@@ -1170,7 +1171,7 @@ export default function App() {
               <ZunoLogo accentColor={settings.accentColor} size={30} />
             </div>
 
-            <nav aria-label="Ana menü" className="space-y-1.5">
+            <nav aria-label={t("Ana menü", settings.language)} className="space-y-1.5">
               {navItems.map((item) => {
                 const isActive = !settingsOpen && activeTab === item.id;
                 return (
@@ -1215,7 +1216,7 @@ export default function App() {
             </nav>
 
             <div className="pt-4 border-t border-current/[0.07] space-y-2">
-              <div className="px-2 text-xs font-medium opacity-55">Çalma listelerin</div>
+              <div className="px-2 text-xs font-medium opacity-55">{t("Çalma listelerin", settings.language)}</div>
               <div className="space-y-1">
                 {playlists.slice(0, 4).map((pl) => (
                   <button
@@ -1262,7 +1263,7 @@ export default function App() {
             }
           >
             <Settings className="h-[18px] w-[18px]" />
-            <span>Ayarlar</span>
+            <span>{t("settings", settings.language)}</span>
           </button>
         </aside>
 
@@ -1282,32 +1283,32 @@ export default function App() {
               </div>
               <span className="hidden sm:inline text-xs font-medium opacity-60 truncate">
                 {settingsOpen
-                  ? 'Ayarlar'
+                  ? t('settings', settings.language)
                   : activeTab === 'home'
-                    ? 'Müziğin seni bekliyor'
+                    ? t('Müziğin seni bekliyor', settings.language)
                     : activeTab === 'discover'
-                      ? 'Keşfet ve ara'
+                      ? t('Keşfet ve ara', settings.language)
                       : activeTab === 'library'
-                        ? 'Kişisel kütüphanen'
-                        : 'Çevrimdışı indirmeler'}
+                        ? t('Kişisel kütüphanen', settings.language)
+                        : t('Çevrimdışı indirmeler', settings.language)}
               </span>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <a
                 href="./download.html"
-                aria-label="ZUNO Music'i indir"
-                title="ZUNO Music'i indir"
+                aria-label={t("ZUNO Music'i indir", settings.language)}
+                title={t("ZUNO Music'i indir", settings.language)}
                 className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${darkMode ? 'border-white/15 bg-white/[0.04] text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
               >
                 <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">İndir</span>
+                <span className="hidden sm:inline">{t("İndir", settings.language)}</span>
               </a>
               <PwaInstallButton accentColor={settings.accentColor} darkMode={darkMode} />
               <button
                 type="button"
-                aria-label={authUser ? 'Hesap ve senkronizasyon' : 'Giriş yap'}
-                title={authUser?.email || 'ZUNO hesabı'}
+                aria-label={authUser ? t('Hesap ve senkronizasyon', settings.language) : t('Giriş yap', settings.language)}
+                title={authUser?.email || t("ZUNO hesabı", settings.language)}
                 onClick={() => setAccountOpen(true)}
                 className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
                   darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-900/10'
@@ -1322,7 +1323,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                aria-label="Ayarlar"
+                aria-label={t("settings", settings.language)}
                 onClick={() => setSettingsOpen((v) => !v)}
                 className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
                   settingsOpen
@@ -1532,19 +1533,19 @@ export default function App() {
               <span className="text-xs font-medium opacity-60">{activeTrack.id ? 'Şimdi Oynatılıyor' : 'Oynatıcı hazır'}</span>
               <button
                 type="button"
-                aria-label="Tam ekran oynatıcıyı aç"
+                aria-label={t("Tam ekran oynatıcıyı aç", settings.language)}
                 onClick={() => setPlayerFullscreen(true)}
                 className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium opacity-75 hover:bg-white/10 hover:opacity-100"
               >
                 <Maximize2 className="h-3.5 w-3.5" />
-                <span>Tam Ekran</span>
+                <span>{t("Tam Ekran", settings.language)}</span>
               </button>
             </div>
 
             <button
               type="button"
               onClick={() => setPlayerFullscreen(true)}
-              aria-label={`Tam ekran oynatıcıyı aç: ${activeTrack.title}`}
+              aria-label={`${t("Tam ekran oynatıcıyı aç", settings.language)}: ${activeTrack.title}`}
               className="group relative block w-full aspect-square overflow-hidden rounded-3xl bg-slate-900 shadow-xl"
             >
               <ArtworkImage
@@ -1563,7 +1564,7 @@ export default function App() {
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
-                  aria-label="Favori"
+                  aria-label={t("Favori", settings.language)}
                   onClick={() => handleToggleFavorite(activeTrack.id)}
                   className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"
                 >
@@ -1618,7 +1619,7 @@ export default function App() {
             <div className="flex items-center justify-center gap-3">
               <button
                 type="button"
-                aria-label="Önceki"
+                aria-label={t("Önceki", settings.language)}
                 onClick={() => handleSkip('prev')}
                 className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10"
               >
@@ -1626,7 +1627,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                aria-label={isPlaying ? 'Duraklat' : 'Oynat'}
+                aria-label={isPlaying ? t('Duraklat', settings.language) : t('Oynat', settings.language)}
                 onClick={handleTogglePlay}
                 className="flex h-13 w-13 items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
                 style={{
@@ -1644,7 +1645,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                aria-label="Sonraki"
+                aria-label={t("Sonraki", settings.language)}
                 onClick={() => handleSkip('next')}
                 className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10"
               >
@@ -1846,6 +1847,7 @@ export default function App() {
         recoveryMode={passwordRecoveryMode}
         onRecoveryComplete={() => setPasswordRecoveryMode(false)}
       />
-    </div>
+      </div>
+    </LanguageProvider>
   );
 }

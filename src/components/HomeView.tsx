@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../utils/i18n';
 import { ArtworkImage } from './ArtworkImage';
 import { ChevronRight, Pause, Play, Sparkles } from 'lucide-react';
 import type { Album, Track } from '../types/music';
@@ -33,6 +34,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   catalogLoading = false,
   catalogError = null,
 }) => {
+  const tr = useTranslation();
   const playableTracks = tracks.filter((track) => Boolean(
     track.audioUrl || track.audioObjectUrl || track.provider === 'youtube-music'
   ));
@@ -61,7 +63,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onClick={onMore}
             className="inline-flex items-center gap-1 text-xs font-medium opacity-70 hover:opacity-100 transition-opacity whitespace-nowrap shrink-0"
           >
-            <span>Tümü</span>
+            <span>{tr('Tümü')}</span>
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
         )}
@@ -138,16 +140,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2 max-w-xl">
             <p className="text-xs font-medium tracking-wide opacity-65">
-              Kişisel Ses Alanın · Akışkan Deneyim
+              {tr('Kişisel Ses Alanın · Akışkan Deneyim')}
             </p>
             <h1
               className="font-display text-2xl sm:text-3xl font-bold tracking-tight"
               style={{ textWrap: 'balance' }}
             >
-              Müziğin seni bekliyor
+              {tr('Müziğin seni bekliyor')}
             </h1>
             <p className="text-sm opacity-75 leading-relaxed">
-              Canlı müzik kataloğunda gerçek parçaları keşfet veya cihazındaki ses dosyalarını kütüphanene ekle.
+              {tr('Canlı müzik kataloğunda gerçek parçaları keşfet veya cihazındaki ses dosyalarını kütüphanene ekle.')}
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
@@ -161,7 +163,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ) : (
                   <Play className="h-4 w-4 fill-current" />
                 )}
-                <span>{isFeaturedCurrent && isPlaying ? 'Duraklat' : hasFeatured ? 'Akışı Başlat' : 'Müzik keşfet'}</span>
+                <span>{isFeaturedCurrent && isPlaying ? tr('Duraklat') : hasFeatured ? tr('Akışı Başlat') : tr('Müzik keşfet')}</span>
               </button>
               <button
                 type="button"
@@ -173,7 +175,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 }`}
               >
                 <Sparkles className="h-4 w-4" style={{ color: accentColor }} />
-                <span>Keşfet</span>
+                <span>{tr('Keşfet')}</span>
               </button>
             </div>
           </div>
@@ -191,7 +193,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               className="h-16 w-16 rounded-xl object-cover shrink-0"
             />
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] opacity-65">Öne çıkan parça</div>
+              <div className="text-[11px] opacity-65">{tr('Öne çıkan parça')}</div>
               <div className="truncate font-display text-sm font-semibold">{featured.title}</div>
               <div className="truncate text-xs opacity-70">
                 {featured.artist} · <span className="tabular-nums">{formatDuration(featured.durationSec)}</span>
@@ -204,14 +206,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* Son dinlenen şarkılar */}
       {recentTracks.length > 0 &&
         renderCarouselSection(
-          'Son dinlenen şarkılar',
+          tr('Son dinlenen şarkılar'),
           recentTracks,
           recentTracks.map((t) => t.id)
         )}
 
       {/* Real tracks returned by the active music provider */}
       {renderCarouselSection(
-        'Canlı katalogdan parçalar',
+        tr('Canlı katalogdan parçalar'),
         playableTracks.slice(0, 12),
         playableTracks.slice(0, 12).map((track) => track.id),
         onOpenDiscover
@@ -220,13 +222,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {playableTracks.length === 0 && (
         <section className={`rounded-3xl border border-dashed px-5 py-8 text-center ${darkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white'}`}>
           <h2 className="font-display text-base font-semibold">
-            {catalogLoading ? 'YouTube Music kataloğu yükleniyor' : catalogError ? 'Müzik kataloğuna ulaşılamadı' : 'Henüz parça yüklenmedi'}
+            {catalogLoading ? tr('YouTube Music kataloğu yükleniyor') : catalogError ? tr('Müzik kataloğuna ulaşılamadı') : tr('Henüz parça yüklenmedi')}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed opacity-65">
-            {catalogError || 'YouTube Music üzerinden gerçek şarkıları keşfet veya Kütüphane üzerinden cihazındaki ses dosyalarını ekle.'}
+            {catalogError || tr('YouTube Music üzerinden gerçek şarkıları keşfet veya Kütüphane üzerinden cihazındaki ses dosyalarını ekle.')}
           </p>
           <button type="button" onClick={onOpenDiscover} className="mt-4 rounded-full px-4 py-2 text-sm font-semibold" style={{ backgroundColor: accentColor, color: '#0b0e16' }}>
-            Müzik keşfet
+            {tr('Müzik keşfet')}
           </button>
         </section>
       )}
@@ -235,7 +237,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {albums.length > 0 && (
         <section className="space-y-3.5">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight">Albüm koleksiyonu</h2>
+            <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight">{tr('Albüm koleksiyonu')}</h2>
           </div>
           <div className="flex gap-3.5 overflow-x-auto pb-2 no-scrollbar snap-x snap-mandatory">
             {albums.map((album) => (

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../utils/i18n';
 import { ArtworkImage } from './ArtworkImage';
 import { AlertCircle, CheckCircle2, Pause, Play, RotateCcw, Trash2 } from 'lucide-react';
 import type { DownloadItem, DownloadStatus, Track } from '../types/music';
@@ -34,6 +35,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
   accentColor,
   darkMode,
 }) => {
+  const tr = useTranslation();
   const completedCount = downloads.filter((d) => d.status === 'completed').length;
   const activeCount = downloads.filter(
     (d) => d.status === 'downloading' || d.status === 'queued'
@@ -49,10 +51,10 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
         }`}
       >
         <div>
-          <h1 className="font-display text-xl font-bold">İndirme Yöneticisi</h1>
+          <h1 className="font-display text-xl font-bold">{tr('İndirme Yöneticisi')}</h1>
           <p className="mt-1 text-xs opacity-70 tabular-nums">
-            {completedCount} tamamlandı · {activeCount} aktif · {formatFileSize(totalDownloadedMb)}{' '}
-            çevrimdışı depolama
+            {completedCount} {tr('tamamlandı')} · {activeCount} {tr('aktif')} · {formatFileSize(totalDownloadedMb)}{' '}
+            {tr('çevrimdışı depolama')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -75,9 +77,9 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
       {/* Download List */}
       {downloads.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-current/15 py-14 px-4 text-center">
-          <p className="text-sm font-medium opacity-75">Henüz indirilen veya bekleyen parça yok.</p>
+          <p className="text-sm font-medium opacity-75">{tr('Henüz indirilen veya bekleyen parça yok.')}</p>
           <p className="mt-1 text-xs opacity-55">
-            Keşfet ekranından veya oynatıcıdan parçaları çevrimdışı dinlemek için indirebilirsin.
+            {tr('Keşfet ekranından veya oynatıcıdan parçaları çevrimdışı dinlemek için indirebilirsin.')}
           </p>
         </div>
       ) : (
@@ -124,7 +126,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
                       >
                         {item.status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5" />}
                         {item.status === 'error' && <AlertCircle className="h-3.5 w-3.5" />}
-                        <span>{STATUS_LABELS[item.status]}</span>
+                        <span>{tr(STATUS_LABELS[item.status])}</span>
                       </span>
                       <span aria-hidden="true">·</span>
                       <span className="tabular-nums">
@@ -149,13 +151,13 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
                     {item.status === 'completed' && (
                       <button
                         type="button"
-                        aria-label={`${track.title} oynat`}
+                        aria-label={`${track.title} ${tr("Oynat")}`}
                         onClick={() => onPlayTrack(track)}
                         className="inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold"
                         style={{ backgroundColor: accentColor, color: '#0b0e16' }}
                       >
                         <Play className="h-3.5 w-3.5 fill-current" />
-                        <span>Oynat</span>
+                        <span>{tr('Oynat')}</span>
                       </button>
                     )}
 
@@ -183,7 +185,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
                     {item.status === 'error' && (
                       <button
                         type="button"
-                        aria-label={`${track.title} yeniden dene`}
+                        aria-label={`${track.title} ${tr("Yeniden dene")}`}
                         onClick={() => onRetry(item.id)}
                         className="flex h-11 w-11 items-center justify-center rounded-full border border-red-400/30 text-red-400 hover:bg-red-500/10"
                       >
@@ -193,7 +195,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
 
                     <button
                       type="button"
-                      aria-label={`${track.title} indirmeyi iptal et`}
+                      aria-label={`${track.title} ${tr("İndirmeyi iptal et")}`}
                       onClick={() => onCancel(item.id)}
                       className="flex h-11 w-11 items-center justify-center rounded-full opacity-65 hover:bg-white/10 hover:opacity-100"
                     >
