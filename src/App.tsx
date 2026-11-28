@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
+import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
 import { ArtworkImage } from './components/ArtworkImage';
 import {
   CheckCircle2,
   Compass,
   Download,
+  ExternalLink,
   Heart,
   Home,
   Library,
@@ -16,6 +18,7 @@ import {
   SkipBack,
   SkipForward,
   UserRound,
+  X,
 } from 'lucide-react';
 import { LanguageProvider, t } from './utils/i18n';
 import type {
@@ -38,7 +41,7 @@ import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
 import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
 import { getTrendingAudiusTracks, searchAudiusTracks } from './utils/audiusApi';
-import { searchYouTubeMusic, youtubeVideoFromTrack, type YouTubeVideo } from './utils/youtubeMusicApi';
+import { loadYouTubeMusicHome, searchYouTubeMusic, youtubeVideoFromTrack, type YouTubeMusicHomeSection, type YouTubeVideo } from './utils/youtubeMusicApi';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -156,12 +159,14 @@ export default function App() {
   const [youtubeMusicTracks, setYoutubeMusicTracks] = useState<Track[]>([]);
   const [youtubeMusicAlbums, setYoutubeMusicAlbums] = useState<Album[]>([]);
   const [youtubeMusicArtists, setYoutubeMusicArtists] = useState<Artist[]>([]);
+  const [youtubeMusicHomeSections, setYoutubeMusicHomeSections] = useState<YouTubeMusicHomeSection[]>([]);
   const [youtubeMusicLoading, setYoutubeMusicLoading] = useState(false);
   const [youtubeMusicError, setYoutubeMusicError] = useState<string | null>(null);
   const [externalSearchRevision, setExternalSearchRevision] = useState(0);
   const [youtubeMusicQueue, setYoutubeMusicQueue] = useState<Track[]>([]);
   const [youtubeMusicQueueIndex, setYoutubeMusicQueueIndex] = useState(0);
   const [selectedYoutubeVideo, setSelectedYoutubeVideo] = useState<YouTubeVideo | null>(null);
+  const [nativeZunoPlayback, setNativeZunoPlayback] = useState<{ track: Track; url: string } | null>(null);
   const allTracks = useMemo(() => {
     const offlineById = new Map(offlineCatalogTracks.map((track) => [track.id, track]));
     const onlineIds = new Set(remoteTracks.map((track) => track.id));
@@ -583,13 +588,14 @@ export default function App() {
     };
   }, [activeTab, searchQuery]);
 
-  // Home starts with real public YouTube Music catalogue results, without requiring a key.
+  // Home loads YouTube Music's real personalised home feed, then supplements it
+  // with public popular/new-music shelves so the first screen has a useful catalogue.
   useEffect(() => {
     if (activeTab !== 'home' || youtubeMusicTracks.length > 0) return;
     const controller = new AbortController();
     setYoutubeMusicLoading(true);
     setYoutubeMusicError(null);
-    void searchYouTubeMusic('popular songs', { signal: controller.signal })
+    void loadYouTubeMusicHome({ signal: controller.signal })
       .then((results) => {
         if (controller.signal.aborted) return;
         setYoutubeMusicTracks((previous) => mergeCatalogItems(results.tracks, previous));
@@ -598,10 +604,11 @@ export default function App() {
           trackIds: results.tracks.filter((track) => track.albumId === album.id).map((track) => track.id),
         })), previous));
         setYoutubeMusicArtists((previous) => mergeCatalogItems(results.artists, previous));
+        setYoutubeMusicHomeSections(results.sections);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music kataloğu açılamadı.');
+        setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music ana sayfa kataloğu açılamadı.');
       })
       .finally(() => {
         if (!controller.signal.aborted) setYoutubeMusicLoading(false);
@@ -730,10 +737,40 @@ export default function App() {
           requestedIds.has(item.id) && item.provider === 'youtube-music' && Boolean(item.providerTrackId)
         );
         if (!videoQueue.some((item) => item.id === track.id)) videoQueue.unshift(track);
-        setYoutubeMusicQueue(videoQueue);
-        setYoutubeMusicQueueIndex(Math.max(0, videoQueue.findIndex((item) => item.id === track.id)));
+
+        // Start the handed-off queue with the tapped song, keeping the next
+        // selections in order. The ZUNO native app owns playback after handoff.
+        const tappedIndex = Math.max(0, videoQueue.findIndex((item) => item.id === track.id));
+        const orderedQueue = [...videoQueue.slice(tappedIndex), ...videoQueue.slice(0, tappedIndex)];
+        const nativeVideoIds = orderedQueue
+          .map((item) => item.providerTrackId || '')
+          .filter((id) => /^[A-Za-z0-9_-]{11}$/.test(id))
+          .slice(0, 50);
+        const nativeUrl = `zuno://play?ids=${encodeURIComponent(nativeVideoIds.join(','))}`;
+
+        setYoutubeMusicQueue(orderedQueue);
+        setYoutubeMusicQueueIndex(0);
         setActiveTrackId('');
         setCurrentTimeSec(0);
+        setNativeZunoPlayback(null);
+
+        if (Capacitor.getPlatform() === 'android' && nativeVideoIds.length > 0) {
+          void AppLauncher.openUrl({ url: nativeUrl })
+            .then(({ completed }) => {
+              if (completed) {
+                setNativeZunoPlayback({ track, url: nativeUrl });
+                setSelectedYoutubeVideo(null);
+                showToast('Müzik ZUNO’nun yerel oynatıcısına aktarıldı. Kontrolleri bildirimden kullanabilirsin.');
+                return;
+              }
+              setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
+            })
+            .catch(() => {
+              setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
+            });
+          return;
+        }
+
         setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
         return;
       }
@@ -742,6 +779,7 @@ export default function App() {
         return;
       }
       setSelectedYoutubeVideo(null);
+      setNativeZunoPlayback(null);
       setYoutubeMusicQueue([]);
       const playableContextIds = contextIds?.filter((id) => {
         const item = allTracks.find((candidate) => candidate.id === id);
@@ -1401,6 +1439,7 @@ export default function App() {
               />
             ) : activeTab === 'home' ? (
               <HomeView
+                catalogSections={youtubeMusicHomeSections}
                 tracks={allTracks}
                 albums={libraryAlbums}
                 recentTrackIds={recentIds}
@@ -1845,6 +1884,48 @@ export default function App() {
           setQueue((prev) => prev.filter((id) => id !== trId))
         }
       />
+
+      {nativeZunoPlayback && (
+        <div
+          className={`fixed bottom-[88px] left-3 right-3 z-[48] mx-auto flex max-w-md items-center gap-3 rounded-2xl border p-2.5 shadow-2xl backdrop-blur-2xl lg:bottom-5 lg:left-auto lg:right-6 lg:mx-0 lg:w-[340px] ${darkMode ? 'border-white/10 bg-[#11151e]/95 text-white' : 'border-slate-200 bg-white/95 text-slate-900'}`}
+          role="status"
+          aria-live="polite"
+        >
+          <ArtworkImage
+            src={nativeZunoPlayback.track.coverUrl}
+            alt={nativeZunoPlayback.track.title}
+            referrerPolicy="no-referrer"
+            className="h-12 w-12 shrink-0 rounded-xl object-cover"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] opacity-60">ZUNO yerel oynatıcı</div>
+            <div className="truncate text-sm font-semibold">{nativeZunoPlayback.track.title}</div>
+            <div className="truncate text-xs opacity-65">{nativeZunoPlayback.track.artist} · Bildirimin üzerinden kontrol et</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              void AppLauncher.openUrl({ url: nativeZunoPlayback.url }).catch(() => {
+                showToast('ZUNO açılamadı. Uygulamanın yüklü olduğunu kontrol et.');
+              });
+            }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-current/10"
+            aria-label="ZUNO oynatıcısını aç"
+            title="ZUNO’yu aç"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setNativeZunoPlayback(null)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full opacity-65 hover:opacity-100"
+            aria-label="Oynatma göstergesini kapat"
+            title="Kapat"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       <YouTubePlayerModal
         video={selectedYoutubeVideo}

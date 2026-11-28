@@ -18,6 +18,7 @@ interface HomeViewProps {
   darkMode: boolean;
   catalogLoading?: boolean;
   catalogError?: string | null;
+  catalogSections?: Array<{ id: string; title: string; tracks: Track[] }>;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -33,6 +34,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   darkMode,
   catalogLoading = false,
   catalogError = null,
+  catalogSections = [],
 }) => {
   const tr = useTranslation();
   const playableTracks = tracks.filter((track) => Boolean(
@@ -211,12 +213,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
           recentTracks.map((t) => t.id)
         )}
 
-      {/* Real tracks returned by the active music provider */}
-      {renderCarouselSection(
-        tr('Canlı katalogdan parçalar'),
-        playableTracks.slice(0, 12),
-        playableTracks.slice(0, 12).map((track) => track.id),
-        onOpenDiscover
+      {/* Keep the separate shelves from the live YouTube Music home feed. */}
+      {catalogSections.length > 0 ? (
+        catalogSections.map((section) => {
+          const sectionTracks = section.tracks.filter((track) => playableTracks.some((item) => item.id === track.id));
+          return renderCarouselSection(
+            section.title,
+            sectionTracks,
+            sectionTracks.map((track) => track.id),
+            onOpenDiscover,
+          );
+        })
+      ) : (
+        renderCarouselSection(
+          tr('Canlı katalogdan parçalar'),
+          playableTracks.slice(0, 12),
+          playableTracks.slice(0, 12).map((track) => track.id),
+          onOpenDiscover,
+        )
       )}
 
       {playableTracks.length === 0 && (
