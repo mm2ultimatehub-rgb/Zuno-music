@@ -579,6 +579,7 @@ public final class ZunoPlaybackPlugin extends Plugin {
         state.put("playWhenReady", player != null && player.getPlayWhenReady());
         state.put("isLoading", player != null && player.isLoading());
         state.put("isEnded", player != null && player.getPlaybackState() == Player.STATE_ENDED);
+        state.put("isForegroundService", service != null && service.isPlaybackOngoing());
         state.put("positionMs", player == null ? 0L : player.getCurrentPosition());
         long duration = player == null ? 0L : player.getDuration();
         state.put("durationMs", duration < 0L ? 0L : duration);
