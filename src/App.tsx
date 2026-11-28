@@ -807,14 +807,26 @@ export default function App() {
         showToast(`Uygulama içi ses akışı açılamadı. Resmî YouTube oynatıcısı açılıyor. ${reason}`);
       }
     },
-    [allTracks, showToast, youtubeMusicTracks]
+    [allTracks, nativePlaybackActive, showToast, youtubeMusicTracks]
   );
+
+  const seekPlayback = useCallback((seconds: number) => {
+    if (nativePlaybackActive) {
+      void zunoNativePlayback.seek({ positionMs: Math.max(0, Math.round(seconds * 1000)) })
+        .catch(() => showToast('Oynatma konumu değiştirilemedi.'));
+      return;
+    }
+    zunoAudioEngine.seek(seconds);
+  }, [nativePlaybackActive, showToast]);
 
   const handlePlayTrack = useCallback(
     (track: Track, contextIds?: string[]) => {
       if (track.provider === 'youtube-music' && track.providerTrackId) {
         if (activeTrackId === track.id && track.audioUrl) {
-          if (isPlaying) {
+          if (nativePlaybackActive) {
+            const action = isPlaying ? zunoNativePlayback.pause() : zunoNativePlayback.resume();
+            void action.then(() => setIsPlaying(!isPlaying)).catch(() => showToast('Oynatma kontrolü başarısız oldu.'));
+          } else if (isPlaying) {
             zunoAudioEngine.pause();
             setIsPlaying(false);
           } else {
@@ -882,6 +894,11 @@ export default function App() {
       showToast('YouTube Music ses akışı henüz hazır değil. Parçayı yeniden seç.');
       return;
     }
+    if (nativePlaybackActive) {
+      const action = isPlaying ? zunoNativePlayback.pause() : zunoNativePlayback.resume();
+      void action.then(() => setIsPlaying(!isPlaying)).catch(() => showToast('Oynatma kontrolü başarısız oldu.'));
+      return;
+    }
     if (isPlaying) {
       zunoAudioEngine.pause();
       setIsPlaying(false);
@@ -890,18 +907,20 @@ export default function App() {
       setIsPlaying(resumed);
       if (!resumed) showToast('Bu parça için oynatılabilir ses kaynağı bulunamadı.');
     }
-  }, [activeTrack, currentTimeSec, isPlaying, showToast]);
+  }, [activeTrack, currentTimeSec, isPlaying, nativePlaybackActive, showToast]);
 
   const handleSkip = useCallback(
     (direction: 'next' | 'prev') => {
       if (direction === 'prev' && currentTimeSec > 4) {
         setCurrentTimeSec(0);
-        zunoAudioEngine.seek(0);
+        seekPlayback(0);
         return;
       }
       const nextId = getNextTrackId(queue, activeTrack.id, repeat, shuffle, direction);
       if (!nextId) {
         youtubePlaybackRequestRef.current += 1;
+        if (nativePlaybackActive) void zunoNativePlayback.stop().catch(() => undefined);
+        setNativePlaybackActive(false);
         zunoAudioEngine.pause();
         setIsPlaying(false);
         return;
@@ -914,6 +933,8 @@ export default function App() {
       }
 
       youtubePlaybackRequestRef.current += 1;
+      if (nativePlaybackActive) void zunoNativePlayback.stop().catch(() => undefined);
+      setNativePlaybackActive(false);
       setSelectedYoutubeVideo(null);
       setNativeZunoPlayback(null);
       setActiveTrackId(nextTrack.id);
@@ -926,7 +947,7 @@ export default function App() {
       }
       setRecentIds((prev) => [nextTrack.id, ...prev.filter((id) => id !== nextTrack.id)].slice(0, 12));
     },
-    [activeTrack.id, allTracks, currentTimeSec, queue, repeat, shuffle, showToast, startYouTubeMusicTrack]
+    [activeTrack.id, allTracks, currentTimeSec, nativePlaybackActive, queue, repeat, seekPlayback, shuffle, showToast, startYouTubeMusicTrack]
   );
 
   const handleSetSleepTimer = useCallback(
@@ -950,7 +971,7 @@ export default function App() {
 
   // Send real track metadata and transport actions to supported system media controls.
   useEffect(() => {
-    if (selectedYoutubeVideo || !activeTrack.id || !('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    if (nativePlaybackActive || selectedYoutubeVideo || !activeTrack.id || !('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
     const session = navigator.mediaSession;
     const artworkUrl = new URL(activeTrack.coverUrl, window.location.href).href;
 
@@ -981,18 +1002,18 @@ export default function App() {
       registerAction('previoustrack', () => handleSkip('prev'));
       registerAction('nexttrack', () => handleSkip('next'));
       registerAction('seekbackward', (details) => {
-        const next = Math.max(0, zunoAudioEngine.getCurrentTime() - (details.seekOffset || 10));
-        zunoAudioEngine.seek(next);
+        const next = Math.max(0, currentTimeSec - (details.seekOffset || 10));
+        seekPlayback(next);
         setCurrentTimeSec(Math.floor(next));
       });
       registerAction('seekforward', (details) => {
-        const next = Math.min(zunoAudioEngine.getDuration(), zunoAudioEngine.getCurrentTime() + (details.seekOffset || 10));
-        zunoAudioEngine.seek(next);
+        const next = Math.min(activeTrack.durationSec, currentTimeSec + (details.seekOffset || 10));
+        seekPlayback(next);
         setCurrentTimeSec(Math.floor(next));
       });
       registerAction('seekto', (details) => {
         if (typeof details.seekTime !== 'number') return;
-        zunoAudioEngine.seek(details.seekTime);
+        seekPlayback(details.seekTime);
         setCurrentTimeSec(Math.floor(details.seekTime));
       });
     } catch {
@@ -1012,7 +1033,7 @@ export default function App() {
         // Unsupported action handlers are ignored.
       }
     };
-  }, [activeTrack, handleSkip, handleTogglePlay, isPlaying, selectedYoutubeVideo?.videoId]);
+  }, [activeTrack, handleSkip, handleTogglePlay, isPlaying, nativePlaybackActive, seekPlayback, selectedYoutubeVideo?.videoId]);
 
 
 
@@ -1021,8 +1042,38 @@ export default function App() {
   }, [handleSkip]);
 
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying && !nativePlaybackActive) return;
+    let endedTrackId = '';
     const id = window.setInterval(() => {
+      if (nativePlaybackActive) {
+        void zunoNativePlayback.getState().then((state) => {
+          setCurrentTimeSec(Math.floor(state.positionMs / 1000));
+          if (state.playWhenReady) setIsPlaying(true);
+          else if (!state.isLoading) setIsPlaying(false);
+
+          if (state.errorMessage) {
+            const failedTrack = allTracks.find((item) => item.id === activeTrackId);
+            setNativePlaybackActive(false);
+            setIsPlaying(false);
+            setActiveTrackId('');
+            void zunoNativePlayback.stop().catch(() => undefined);
+            if (failedTrack?.provider === 'youtube-music') {
+              setSelectedYoutubeVideo(youtubeVideoFromTrack(failedTrack));
+              showToast(`Android ses akışı başarısız oldu. Resmî YouTube oynatıcısı açılıyor. ${state.errorMessage}`);
+            } else {
+              showToast(`Yerel oynatma başarısız oldu: ${state.errorMessage}`);
+            }
+            return;
+          }
+
+          if (state.isEnded && activeTrackId && endedTrackId !== activeTrackId) {
+            endedTrackId = activeTrackId;
+            handleSkipRef.current('next');
+          }
+        }).catch(() => undefined);
+        return;
+      }
+
       if (zunoAudioEngine.hasEnded()) {
         handleSkipRef.current('next');
         return;
@@ -1041,9 +1092,9 @@ export default function App() {
           // Position state is optional on older WebViews.
         }
       }
-    }, 250);
+    }, nativePlaybackActive ? 650 : 250);
     return () => window.clearInterval(id);
-  }, [isPlaying]);
+  }, [activeTrackId, allTracks, isPlaying, nativePlaybackActive, playbackRate, showToast]);
 
   // Sleep timer countdown loop
   useEffect(() => {
@@ -1751,7 +1802,7 @@ export default function App() {
                 onChange={(ratio) => {
                   const nextSec = Math.round(ratio * activeTrack.durationSec);
                   setCurrentTimeSec(nextSec);
-                  zunoAudioEngine.seek(nextSec);
+                  seekPlayback(nextSec);
                 }}
                 accentColor={
                   settings.dynamicPlayerColors ? activeTrack.accentColor : settings.accentColor
@@ -1897,7 +1948,7 @@ export default function App() {
           onSeekRatio={(ratio) => {
             const nextSec = Math.round(ratio * activeTrack.durationSec);
             setCurrentTimeSec(nextSec);
-            zunoAudioEngine.seek(nextSec);
+            seekPlayback(nextSec);
           }}
           onExpand={() => setPlayerFullscreen(true)}
           accentColor={
