@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
+import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
 import { ArtworkImage } from './components/ArtworkImage';
 import {
@@ -38,7 +39,7 @@ import { formatDuration, getNextTrackId } from './utils/zunoLogic';
 import { zunoAudioEngine } from './utils/audioEngine';
 import { createAudioId, deleteAudioFile, fetchAudioBlob, listAudioFiles, readAudioDuration, saveAudioFile } from './utils/localAudioLibrary';
 import { getTrendingAudiusTracks, searchAudiusTracks } from './utils/audiusApi';
-import { searchYouTubeMusic, youtubeVideoFromTrack, type YouTubeVideo } from './utils/youtubeMusicApi';
+import { loadYouTubeMusicHome, searchYouTubeMusic, youtubeVideoFromTrack, type YouTubeVideo } from './utils/youtubeMusicApi';
 import { ZunoLogo } from './components/ZunoLogo';
 import { FlowingTabs, type FlowingTabItem } from './components/fluid/FlowingTabs';
 import { LiquidSlider } from './components/fluid/LiquidSlider';
@@ -583,13 +584,14 @@ export default function App() {
     };
   }, [activeTab, searchQuery]);
 
-  // Home starts with real public YouTube Music catalogue results, without requiring a key.
+  // Home loads YouTube Music's real personalised home feed, then supplements it
+  // with public popular/new-music shelves so the first screen has a useful catalogue.
   useEffect(() => {
     if (activeTab !== 'home' || youtubeMusicTracks.length > 0) return;
     const controller = new AbortController();
     setYoutubeMusicLoading(true);
     setYoutubeMusicError(null);
-    void searchYouTubeMusic('popular songs', { signal: controller.signal })
+    void loadYouTubeMusicHome({ signal: controller.signal })
       .then((results) => {
         if (controller.signal.aborted) return;
         setYoutubeMusicTracks((previous) => mergeCatalogItems(results.tracks, previous));
@@ -601,7 +603,7 @@ export default function App() {
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music kataloğu açılamadı.');
+        setYoutubeMusicError(error instanceof Error ? error.message : 'YouTube Music ana sayfa kataloğu açılamadı.');
       })
       .finally(() => {
         if (!controller.signal.aborted) setYoutubeMusicLoading(false);
