@@ -15,6 +15,7 @@ import {
   SkipForward,
   UserRound,
 } from 'lucide-react';
+import { t } from './utils/i18n';
 import type {
   Album,
   Artist,
@@ -1115,10 +1116,10 @@ export default function App() {
   }, [activeTrackId, localTracks, showToast]);
 
   const navItems: FlowingTabItem[] = [
-    { id: 'home', label: 'Ana Sayfa', icon: <Home className="h-[18px] w-[18px]" /> },
-    { id: 'discover', label: 'Keşfet', icon: <Compass className="h-[18px] w-[18px]" /> },
-    { id: 'library', label: 'Kütüphane', icon: <Library className="h-[18px] w-[18px]" /> },
-    { id: 'downloads', label: 'İndirilenler', icon: <Download className="h-[18px] w-[18px]" /> },
+    { id: 'home', label: t('home', settings.language), icon: <Home className="h-[18px] w-[18px]" /> },
+    { id: 'discover', label: t('discover', settings.language), icon: <Compass className="h-[18px] w-[18px]" /> },
+    { id: 'library', label: t('library', settings.language), icon: <Library className="h-[18px] w-[18px]" /> },
+    { id: 'downloads', label: t('downloads', settings.language), icon: <Download className="h-[18px] w-[18px]" /> },
   ];
 
   const activeDownloadsCount = downloads.filter(
@@ -1342,6 +1343,7 @@ export default function App() {
             {settingsOpen ? (
               <SettingsView
                 settings={settings}
+                language={settings.language}
                 onUpdate={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
                 storageUsedMb={storageUsedMb}
                 onClearCache={() => {
