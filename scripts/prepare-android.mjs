@@ -165,7 +165,10 @@ import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
+import androidx.media3.datasource.DefaultDataSource;
+import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
 
@@ -174,16 +177,42 @@ public final class ZunoPlaybackService extends MediaSessionService {
     public static final String ACTION_PAUSE = "${appId}.PAUSE";
     public static final String ACTION_RESUME = "${appId}.RESUME";
     public static final String ACTION_STOP = "${appId}.STOP";
+    private static final String FALLBACK_USER_AGENT =
+        "com.google.android.youtube/21.03.36(Linux; U; Android 16; en_US; SM-S908E Build/TP1A.220624.014) gzip";
 
     private static volatile ZunoPlaybackService instance;
     private ExoPlayer player;
     private MediaSession mediaSession;
+    private String playerUserAgent;
 
     @Override
     public void onCreate() {
         super.onCreate();
         instance = this;
-        player = new ExoPlayer.Builder(this).build();
+    }
+
+    private void ensurePlayer(String userAgent) {
+        String selectedUserAgent = userAgent == null || userAgent.trim().isEmpty()
+            ? FALLBACK_USER_AGENT
+            : userAgent.trim();
+        if (player != null && selectedUserAgent.equals(playerUserAgent)) return;
+
+        if (mediaSession != null) {
+            mediaSession.release();
+            mediaSession = null;
+        }
+        if (player != null) {
+            player.release();
+            player = null;
+        }
+
+        DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
+            .setUserAgent(selectedUserAgent)
+            .setAllowCrossProtocolRedirects(true);
+        DefaultDataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(this, httpFactory);
+        player = new ExoPlayer.Builder(this)
+            .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSourceFactory))
+            .build();
         player.setAudioAttributes(
             new AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
@@ -193,6 +222,7 @@ public final class ZunoPlaybackService extends MediaSessionService {
         );
         player.setWakeMode(C.WAKE_MODE_LOCAL);
         mediaSession = new MediaSession.Builder(this, player).build();
+        playerUserAgent = selectedUserAgent;
     }
 
     @Override
@@ -202,6 +232,7 @@ public final class ZunoPlaybackService extends MediaSessionService {
             if (ACTION_PLAY.equals(action)) {
                 String url = intent.getStringExtra("url");
                 if (url != null && url.startsWith("https://")) {
+                    ensurePlayer(intent.getStringExtra("userAgent"));
                     MediaMetadata metadata = new MediaMetadata.Builder()
                         .setTitle(intent.getStringExtra("title"))
                         .setArtist(intent.getStringExtra("artist"))
@@ -217,12 +248,14 @@ public final class ZunoPlaybackService extends MediaSessionService {
                     player.play();
                 }
             } else if (ACTION_PAUSE.equals(action)) {
-                player.pause();
+                if (player != null) player.pause();
             } else if (ACTION_RESUME.equals(action)) {
-                player.play();
+                if (player != null) player.play();
             } else if (ACTION_STOP.equals(action)) {
-                player.stop();
-                player.clearMediaItems();
+                if (player != null) {
+                    player.stop();
+                    player.clearMediaItems();
+                }
             }
         }
         return super.onStartCommand(intent, flags, startId);
@@ -236,10 +269,12 @@ public final class ZunoPlaybackService extends MediaSessionService {
         return instance;
     }
 
+    @Nullable
     public ExoPlayer getPlayer() {
         return player;
     }
 
+    @Nullable
     @Override
     public MediaSession onGetSession(MediaSession.ControllerInfo controllerInfo) {
         return mediaSession;
@@ -259,7 +294,7 @@ public final class ZunoPlaybackService extends MediaSessionService {
         super.onDestroy();
     }
 }
-`;
+`;;
 
 const pluginSource = `package ${appId}.nativeplayback;
 
@@ -289,7 +324,8 @@ public final class ZunoPlaybackPlugin extends Plugin {
             .putExtra("title", call.getString("title", "ZUNO Music"))
             .putExtra("artist", call.getString("artist", ""))
             .putExtra("album", call.getString("album", ""))
-            .putExtra("artworkUrl", call.getString("artworkUrl", ""));
+            .putExtra("artworkUrl", call.getString("artworkUrl", ""))
+            .putExtra("userAgent", call.getString("userAgent", ""));
         try {
             ContextCompat.startForegroundService(getContext(), intent);
             call.resolve();
