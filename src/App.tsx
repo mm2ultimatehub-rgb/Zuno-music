@@ -15,7 +15,7 @@ import {
   SkipForward,
   UserRound,
 } from 'lucide-react';
-import { t } from './utils/i18n';
+import { LanguageProvider, t } from './utils/i18n';
 import type {
   Album,
   Artist,
@@ -1136,7 +1136,8 @@ export default function App() {
     downloads.reduce((sum, item) => sum + item.downloadedMb, 0);
 
   return (
-    <div
+    <LanguageProvider language={settings.language}>
+      <div
       className={`min-h-screen transition-colors duration-300 ${
         darkMode ? 'bg-[#07090e] text-[#f2f5f9]' : 'bg-[#f4f6fa] text-[#0c1118]'
       }`}
@@ -1846,6 +1847,7 @@ export default function App() {
         recoveryMode={passwordRecoveryMode}
         onRecoveryComplete={() => setPasswordRecoveryMode(false)}
       />
-    </div>
+      </div>
+    </LanguageProvider>
   );
 }
