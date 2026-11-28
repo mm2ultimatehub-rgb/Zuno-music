@@ -819,7 +819,8 @@ export default function App() {
   const handlePlayTrack = useCallback(
     (track: Track, contextIds?: string[]) => {
       if (track.provider === 'youtube-music' && track.providerTrackId) {
-        if (activeTrackId === track.id && track.audioUrl) {
+        const resolvedTrack = allTracks.find((item) => item.id === track.id) || track;
+        if (activeTrackId === track.id && resolvedTrack.audioUrl) {
           if (nativePlaybackActive) {
             const action = isPlaying ? zunoNativePlayback.pause() : zunoNativePlayback.resume();
             void action.then(() => setIsPlaying(!isPlaying)).catch(() => showToast('Oynatma kontrolü başarısız oldu.'));
