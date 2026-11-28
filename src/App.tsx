@@ -1143,7 +1143,15 @@ export default function App() {
             nativeForegroundWarningTrackRef.current !== activeTrackId
           ) {
             nativeForegroundWarningTrackRef.current = activeTrackId;
-            showToast('Android medya servisi arka plan moduna geçemedi. Sistem bildirim iznini ve pil kısıtlamalarını kontrol et.');
+            const foregroundFailedTrack = allTracks.find((item) => item.id === activeTrackId);
+            if (foregroundFailedTrack?.provider === 'youtube-music') {
+              void handoffToMainZunoPlayer(
+                foregroundFailedTrack,
+                'Android medya servisi ön plan durumuna geçemedi.'
+              );
+            } else {
+              showToast('Android medya servisi arka plan moduna geçemedi.');
+            }
           }
 
           if (state.errorMessage) {
