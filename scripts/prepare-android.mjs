@@ -147,6 +147,7 @@ if (!manifest.includes('android:name=".nativeplayback.ZunoPlaybackService"')) {
         <service
             android:name=".nativeplayback.ZunoPlaybackService"
             android:exported="true"
+            android:stopWithTask="false"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService" />
@@ -330,6 +331,28 @@ public final class ZunoPlaybackService extends MediaSessionService {
             }
         }
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    @Override
+    public void onTaskRemoved(@Nullable Intent rootIntent) {
+        // Keep audio alive when Android removes the app task from Recents.
+        // isPlaying() can be false during a short rebuffer; playWhenReady stays
+        // true while Media3 is still expected to continue playback.
+        boolean shouldKeepPlayback =
+            player != null &&
+            player.getMediaItemCount() > 0 &&
+            player.getPlayWhenReady() &&
+            player.getPlaybackState() != Player.STATE_IDLE &&
+            player.getPlaybackState() != Player.STATE_ENDED;
+
+        if (shouldKeepPlayback) {
+            // MediaSessionService has already promoted itself to a media
+            // foreground service while playback is ongoing. Do not call the
+            // default task-removal handler, which can pause/stop idle sessions.
+            return;
+        }
+
+        super.onTaskRemoved(rootIntent);
     }
 
     private static Uri parseUri(String value) {
