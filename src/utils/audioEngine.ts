@@ -16,6 +16,7 @@ class ZunoAudioEngine {
   private volume = 0.78;
   private bassBoost = 0.35;
   private playbackRate = 1;
+  private onPlaybackError: ((error: Error) => void) | null = null;
 
   private ensureContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -47,11 +48,16 @@ class ZunoAudioEngine {
     return this.ctx;
   }
 
-  public startTrack(track: Track, startSec = 0): boolean {
+  public startTrack(
+    track: Track,
+    startSec = 0,
+    onError?: (error: Error) => void
+  ): boolean {
     const source = track.audioObjectUrl || track.audioUrl;
     if (!source) return false;
 
     this.stopInternal();
+    this.onPlaybackError = onError || null;
     const audio = new Audio();
     audio.preload = 'auto';
     audio.src = source;
@@ -92,10 +98,19 @@ class ZunoAudioEngine {
     audio.addEventListener('loadedmetadata', seekToStart, { once: true });
     if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) seekToStart();
 
+    const reportError = (error: Error) => {
+      if (this.htmlAudio !== audio) return;
+      this.isPlaying = false;
+      this.onPlaybackError?.(error);
+    };
+    audio.addEventListener('error', () => {
+      reportError(new Error('Ses akışı yüklenemedi veya bağlantı kesildi.'));
+    }, { once: true });
+
     const playResult = audio.play();
     if (playResult) {
-      void playResult.catch(() => {
-        if (this.htmlAudio === audio) this.isPlaying = false;
+      void playResult.catch((error: unknown) => {
+        reportError(error instanceof Error ? error : new Error('Ses oynatma başlatılamadı.'));
       });
     }
     return true;
@@ -200,6 +215,7 @@ class ZunoAudioEngine {
       this.mediaSource = null;
     }
     this.currentTrack = null;
+    this.onPlaybackError = null;
   }
 }
 
