@@ -69,7 +69,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail || !password) {
-      setMessage('E-posta ve şifre alanlarını doldur.');
+      setMessage(tr('E-posta ve şifre alanlarını doldur.'));
       return;
     }
     if (password.length < 8) {
@@ -89,7 +89,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         if (error) throw error;
         setMessage(
           data.session
-            ? 'Hesabın oluşturuldu. ZUNO bulut eşitlemesi etkin.'
+            ? tr('Hesabın oluşturuldu. ZUNO bulut eşitlemesi etkin.')
             : tr('Kayıt oluşturuldu. Giriş yapmadan önce e-posta adresine gönderilen doğrulama bağlantısını aç.')
         );
       } else {
@@ -303,7 +303,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 className="h-10 rounded-xl text-xs font-semibold transition-colors"
                 style={mode === 'signin' ? { backgroundColor: accentColor, color: '#0b0e16' } : undefined}
               >
-                Giriş yap
+                {tr('Giriş yap')}
               </button>
               <button
                 type="button"
@@ -311,7 +311,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 className="h-10 rounded-xl text-xs font-semibold transition-colors"
                 style={mode === 'signup' ? { backgroundColor: accentColor, color: '#0b0e16' } : undefined}
               >
-                Hesap oluştur
+                {tr('Hesap oluştur')}
               </button>
             </div>
 
@@ -326,7 +326,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="ornek@eposta.com"
+                    placeholder="name@example.com"
                     className="w-full bg-transparent text-sm outline-none"
                   />
                 </span>
@@ -343,7 +343,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     minLength={8}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="En az 8 karakter"
+                    placeholder={tr("En az 8 karakter")}
                     className="w-full min-w-0 bg-transparent text-sm outline-none"
                   />
                   <button
@@ -371,7 +371,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   disabled={busy}
                   className="w-full py-2 text-xs font-semibold opacity-70 transition-opacity hover:opacity-100 disabled:opacity-40"
                 >
-                  Şifremi unuttum
+                  {tr('Şifremi unuttum')}
                 </button>
               )}
             </form>
