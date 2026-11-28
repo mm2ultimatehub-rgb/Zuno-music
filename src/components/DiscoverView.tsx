@@ -127,7 +127,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         className="space-y-3"
       >
         <label htmlFor="zuno-search-input" className="sr-only">
-          Şarkı, sanatçı, albüm veya podcast ara
+          {tr('Şarkı, sanatçı, albüm veya podcast ara')}
         </label>
         <div
           className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
@@ -284,8 +284,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                           YouTube oynatıcı
                         </span>
                       ) : track.provider === 'audius' && !track.downloadable ? (
-                        <span className="px-2 text-[10px] font-medium opacity-50" title="Sanatçı indirmeye izin vermiyor">
-                          İndirme kapalı
+                        <span className="px-2 text-[10px] font-medium opacity-50" title={tr("Sanatçı indirmeye izin vermiyor")}>
+                          {tr("İndirme kapalı")}
                         </span>
                       ) : (
                         <DownloadActionButton
@@ -323,7 +323,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       {/* Results: Albums */}
       {(category === 'all' || category === 'albums') && filteredAlbums.length > 0 && (
         <section className="space-y-3">
-          <h2 className="font-display text-base font-semibold tracking-tight opacity-90">Albümler</h2>
+          <h2 className="font-display text-base font-semibold tracking-tight opacity-90" >{tr('Albümler')}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {filteredAlbums.map((album) => (
               <button
