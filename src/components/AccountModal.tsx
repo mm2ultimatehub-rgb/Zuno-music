@@ -12,6 +12,7 @@ import {
 import type { User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../utils/supabaseClient';
 import { getZunoAuthRedirectUrl } from '../utils/authRedirect';
+import { useTranslation } from '../utils/i18n';
 import type { CloudSyncStatus } from '../utils/cloudSync';
 
 interface AccountModalProps {
@@ -43,6 +44,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   recoveryMode,
   onRecoveryComplete,
 }) => {
+  const tr = useTranslation();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,7 +73,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       return;
     }
     if (password.length < 8) {
-      setMessage('Şifre en az 8 karakter olmalı.');
+      setMessage(tr('Şifre en az 8 karakter olmalı.'));
       return;
     }
 
@@ -88,7 +90,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         setMessage(
           data.session
             ? 'Hesabın oluşturuldu. ZUNO bulut eşitlemesi etkin.'
-            : 'Kayıt oluşturuldu. Giriş yapmadan önce e-posta adresine gönderilen doğrulama bağlantısını aç.'
+            : tr('Kayıt oluşturuldu. Giriş yapmadan önce e-posta adresine gönderilen doğrulama bağlantısını aç.')
         );
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -96,10 +98,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
           password,
         });
         if (error) throw error;
-        setMessage('Giriş başarılı. Kütüphanen eşitleniyor.');
+        setMessage(tr('Giriş başarılı. Kütüphanen eşitleniyor.'));
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Hesap işlemi tamamlanamadı.');
+      setMessage(error instanceof Error ? error.message : tr('Hesap işlemi tamamlanamadı.'));
     } finally {
       setBusy(false);
     }
@@ -109,7 +111,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     if (!supabase) return;
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
-      setMessage('Şifre sıfırlama bağlantısı için önce e-posta adresini yaz.');
+      setMessage(tr('Şifre sıfırlama bağlantısı için önce e-posta adresini yaz.'));
       return;
     }
 
@@ -120,9 +122,9 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         redirectTo: getZunoAuthRedirectUrl(),
       });
       if (error) throw error;
-      setMessage('Sıfırlama bağlantısı gönderildiyse e-posta kutuna ulaşacak. Gelen bağlantıyı bu cihazda aç.');
+      setMessage(tr('Sıfırlama bağlantısı gönderildiyse e-posta kutuna ulaşacak. Gelen bağlantıyı bu cihazda aç.'));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Şifre sıfırlama isteği gönderilemedi.');
+      setMessage(error instanceof Error ? error.message : tr('Şifre sıfırlama isteği gönderilemedi.'));
     } finally {
       setBusy(false);
     }
@@ -132,11 +134,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     event.preventDefault();
     if (!supabase) return;
     if (newPassword.length < 8) {
-      setMessage('Yeni şifre en az 8 karakter olmalı.');
+      setMessage(tr('Yeni şifre en az 8 karakter olmalı.'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setMessage('Yeni şifreler eşleşmiyor.');
+      setMessage(tr('Yeni şifreler eşleşmiyor.'));
       return;
     }
 
@@ -148,10 +150,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       setPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setMessage('Şifren güncellendi. Yeni şifrenle hesabını kullanabilirsin.');
+      setMessage(tr('Şifren güncellendi. Yeni şifrenle hesabını kullanabilirsin.'));
       onRecoveryComplete();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Şifre güncellenemedi.');
+      setMessage(error instanceof Error ? error.message : tr('Şifre güncellenemedi.'));
     } finally {
       setBusy(false);
     }
@@ -164,9 +166,9 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      setMessage('Oturum kapatıldı. Bu cihazdaki yerel müzik dosyaların silinmedi.');
+      setMessage(tr('Oturum kapatıldı. Bu cihazdaki yerel müzik dosyaların silinmedi.'));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Oturum kapatılamadı.');
+      setMessage(error instanceof Error ? error.message : tr('Oturum kapatılamadı.'));
     } finally {
       setBusy(false);
     }
@@ -196,14 +198,14 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             </div>
             <div>
               <h2 id="zuno-account-title" className="font-display text-xl font-bold">
-                ZUNO Hesabı
+                {tr("ZUNO Hesabı")}
               </h2>
-              <p className="mt-0.5 text-xs opacity-60">Kütüphaneni cihazların arasında taşı</p>
+              <p className="mt-0.5 text-xs opacity-60">{tr("Kütüphaneni cihazların arasında taşı")}</p>
             </div>
           </div>
           <button
             type="button"
-            aria-label="Hesap penceresini kapat"
+            aria-label={tr("Hesap penceresini kapat")}
             onClick={onClose}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10"
           >
@@ -215,21 +217,20 @@ export const AccountModal: React.FC<AccountModalProps> = ({
           <div className="rounded-2xl border border-amber-400/25 bg-amber-500/[0.08] p-4">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <AlertCircle className="h-4 w-4 text-amber-400" />
-              Bulut hesabı henüz bağlanmadı
+              {tr("Bulut hesabı henüz bağlanmadı")}
             </div>
             <p className="mt-2 text-xs leading-relaxed opacity-75">
-              Giriş ve kayıt ekranını etkinleştirmek için ZUNO’ya özel Supabase projesi oluşturulmalı.
-              Kurulum adımları depodaki SUPABASE_SETUP.md dosyasında.
+              {tr("Giriş ve kayıt ekranını etkinleştirmek için ZUNO’ya özel Supabase projesi oluşturulmalı. Kurulum adımları depodaki SUPABASE_SETUP.md dosyasında.")}
             </p>
           </div>
         ) : recoveryMode ? (
           <div className="space-y-4">
             <div className="rounded-2xl border border-current/10 p-4 text-xs leading-relaxed opacity-75">
-              Hesabın için yeni bir şifre belirle. Bu işlemden sonra diğer cihazlarda yeniden giriş yapman gerekebilir.
+              {tr("Hesabın için yeni bir şifre belirle. Bu işlemden sonra diğer cihazlarda yeniden giriş yapman gerekebilir.")}
             </div>
             <form onSubmit={handleCompleteRecovery} className="space-y-3">
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium opacity-70">Yeni şifre</span>
+                <span className="text-xs font-medium opacity-70">{tr("Yeni şifre")}</span>
                 <input
                   type="password"
                   autoComplete="new-password"
@@ -237,12 +238,12 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   minLength={8}
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
-                  placeholder="En az 8 karakter"
+                  placeholder={tr("En az 8 karakter")}
                   className={'h-12 w-full rounded-xl border px-3 text-sm outline-none ' + field}
                 />
               </label>
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium opacity-70">Yeni şifreyi tekrar yaz</span>
+                <span className="text-xs font-medium opacity-70">{tr("Yeni şifreyi tekrar yaz")}</span>
                 <input
                   type="password"
                   autoComplete="new-password"
@@ -250,7 +251,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   minLength={8}
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
-                  placeholder="Yeni şifreyi doğrula"
+                  placeholder={tr("Yeni şifreyi doğrula")}
                   className={'h-12 w-full rounded-xl border px-3 text-sm outline-none ' + field}
                 />
               </label>
@@ -260,15 +261,15 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 className="flex h-12 w-full items-center justify-center rounded-2xl text-sm font-bold disabled:opacity-50"
                 style={{ backgroundColor: accentColor, color: '#0b0e16' }}
               >
-                {busy ? 'Şifre güncelleniyor...' : 'Yeni şifreyi kaydet'}
+                {busy ? tr('Şifre güncelleniyor...') : tr('Yeni şifreyi kaydet')}
               </button>
             </form>
           </div>
         ) : user ? (
           <div className="space-y-4">
             <div className={'rounded-2xl border p-4 ' + (darkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-slate-50')}>
-              <div className="text-[11px] font-semibold uppercase tracking-wider opacity-55">Oturum açıldı</div>
-              <div className="mt-1 break-all text-sm font-semibold">{user.email || 'ZUNO kullanıcısı'}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider opacity-55">{tr("Oturum açıldı")}</div>
+              <div className="mt-1 break-all text-sm font-semibold">{user.email || tr('ZUNO kullanıcısı')}</div>
               <div className="mt-4 flex items-center gap-2 text-xs">
                 {status === 'error' ? (
                   <AlertCircle className="h-4 w-4 text-rose-400" />
@@ -277,12 +278,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 ) : (
                   <Cloud className="h-4 w-4" style={{ color: accentColor }} />
                 )}
-                <span>{STATUS_LABELS[status]}</span>
+                <span>{tr(STATUS_LABELS[status])}</span>
               </div>
             </div>
             <div className="rounded-2xl border border-current/10 p-4 text-xs leading-relaxed opacity-70">
-              Ayarlar, favoriler, son dinlenenler, çalma listeleri ve arama geçmişi otomatik eşitlenir.
-              İçe aktardığın ses dosyaları ve indirmelerin yalnızca bu cihazda saklanır.
+              {tr("Ayarlar, favoriler, son dinlenenler, çalma listeleri ve arama geçmişi otomatik eşitlenir. İçe aktardığın ses dosyaları ve indirmelerin yalnızca bu cihazda saklanır.")}
             </div>
             <button
               type="button"
@@ -291,7 +291,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-current/15 text-sm font-semibold transition-colors hover:bg-white/10 disabled:opacity-50"
             >
               <LogOut className="h-4 w-4" />
-              {busy ? 'Oturum kapatılıyor...' : 'Oturumu kapat'}
+              {busy ? tr('Oturum kapatılıyor...') : tr('Oturumu kapat')}
             </button>
           </div>
         ) : (
@@ -317,7 +317,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
 
             <form onSubmit={handleSubmit} className="space-y-3">
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium opacity-70">E-posta adresi</span>
+                <span className="text-xs font-medium opacity-70">{tr("E-posta adresi")}</span>
                 <span className={'flex h-12 items-center gap-2.5 rounded-xl border px-3 ' + field}>
                   <Mail className="h-4 w-4 shrink-0 opacity-50" />
                   <input
@@ -333,7 +333,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               </label>
 
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium opacity-70">Şifre</span>
+                <span className="text-xs font-medium opacity-70">{tr("Şifre")}</span>
                 <span className={'flex h-12 items-center gap-2.5 rounded-xl border px-3 ' + field}>
                   <LockKeyhole className="h-4 w-4 shrink-0 opacity-50" />
                   <input
@@ -351,7 +351,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     onClick={() => setShowPassword((value) => !value)}
                     className="shrink-0 text-xs opacity-60 hover:opacity-100"
                   >
-                    {showPassword ? 'Gizle' : 'Göster'}
+                    {showPassword ? tr('Gizle') : tr('Göster')}
                   </button>
                 </span>
               </label>
@@ -362,7 +362,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 className="mt-2 flex h-12 w-full items-center justify-center rounded-2xl text-sm font-bold transition-opacity disabled:opacity-50"
                 style={{ backgroundColor: accentColor, color: '#0b0e16' }}
               >
-                {busy ? 'İşleniyor...' : mode === 'signup' ? 'Ücretsiz hesap oluştur' : 'ZUNO’ya giriş yap'}
+                {busy ? tr('İşleniyor...') : mode === 'signup' ? tr('Ücretsiz hesap oluştur') : tr('ZUNO’ya giriş yap')}
               </button>
               {mode === 'signin' && (
                 <button
