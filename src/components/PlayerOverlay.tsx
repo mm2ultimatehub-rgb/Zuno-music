@@ -731,7 +731,7 @@ const coverSwipeRef = useRef<{ active: boolean; startX: number; lastX: number }>
 
             <button
               type="button"
-              aria-label={`Tekrar modu: ${repeat}`}
+              aria-label={tr(`Tekrar modu: ${repeat}`)}
               onClick={onCycleRepeat}
               className="flex h-12 w-12 items-center justify-center rounded-full hover:bg-white/10"
               style={repeat !== 'off' ? { color: activeAccent } : { color: 'rgba(255,255,255,0.65)' }}
