@@ -165,15 +165,23 @@ import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.Player;
 import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class ZunoPlaybackService extends MediaSessionService {
     public static final String ACTION_PLAY = "${appId}.PLAY";
+    public static final String ACTION_SET_QUEUE = "${appId}.SET_QUEUE";
+    public static final String ACTION_SET_REPEAT = "${appId}.SET_REPEAT";
+    public static final String ACTION_SET_SHUFFLE = "${appId}.SET_SHUFFLE";
     public static final String ACTION_PAUSE = "${appId}.PAUSE";
     public static final String ACTION_RESUME = "${appId}.RESUME";
     public static final String ACTION_STOP = "${appId}.STOP";
@@ -225,6 +233,57 @@ public final class ZunoPlaybackService extends MediaSessionService {
         playerUserAgent = selectedUserAgent;
     }
 
+    private MediaItem createQueueItem(JSONObject data) {
+        String url = data.optString("url", "");
+        if (!url.startsWith("https://")) return null;
+
+        MediaMetadata metadata = new MediaMetadata.Builder()
+            .setTitle(data.optString("title", "ZUNO Music"))
+            .setArtist(data.optString("artist", ""))
+            .setAlbumTitle(data.optString("album", ""))
+            .setArtworkUri(parseUri(data.optString("artworkUrl", "")))
+            .build();
+        return new MediaItem.Builder()
+            .setMediaId(data.optString("id", url))
+            .setUri(Uri.parse(url))
+            .setMediaMetadata(metadata)
+            .build();
+    }
+
+    private void setQueueFromIntent(Intent intent) {
+        if (player == null) return;
+        try {
+            JSONArray queue = new JSONArray(intent.getStringExtra("queueJson"));
+            List<MediaItem> items = new ArrayList<>();
+            String currentId = player.getCurrentMediaItem() == null
+                ? ""
+                : player.getCurrentMediaItem().mediaId;
+            int startIndex = Math.max(0, intent.getIntExtra("startIndex", 0));
+            boolean currentFound = false;
+
+            for (int index = 0; index < queue.length(); index++) {
+                MediaItem item = createQueueItem(queue.getJSONObject(index));
+                if (item == null) continue;
+                items.add(item);
+                if (!currentId.isEmpty() && currentId.equals(item.mediaId)) {
+                    startIndex = items.size() - 1;
+                    currentFound = true;
+                }
+            }
+
+            if (items.isEmpty()) return;
+            if (!currentFound) startIndex = Math.min(startIndex, items.size() - 1);
+            long positionMs = currentFound && player.getPlaybackState() != Player.STATE_ENDED
+                ? player.getCurrentPosition()
+                : 0L;
+            player.setMediaItems(items, startIndex, positionMs);
+            player.prepare();
+            player.play();
+        } catch (Exception ignored) {
+            // Keep the already-playing single item if a queue update is malformed.
+        }
+    }
+
     @Override
     public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
         if (intent != null) {
@@ -240,6 +299,7 @@ public final class ZunoPlaybackService extends MediaSessionService {
                         .setArtworkUri(parseUri(intent.getStringExtra("artworkUrl")))
                         .build();
                     MediaItem item = new MediaItem.Builder()
+                        .setMediaId(intent.getStringExtra("id"))
                         .setUri(Uri.parse(url))
                         .setMediaMetadata(metadata)
                         .build();
@@ -247,6 +307,17 @@ public final class ZunoPlaybackService extends MediaSessionService {
                     player.prepare();
                     player.play();
                 }
+            } else if (ACTION_SET_QUEUE.equals(action)) {
+                setQueueFromIntent(intent);
+            } else if (ACTION_SET_REPEAT.equals(action)) {
+                if (player != null) {
+                    String mode = intent.getStringExtra("repeatMode");
+                    player.setRepeatMode("one".equals(mode)
+                        ? Player.REPEAT_MODE_ONE
+                        : ("off".equals(mode) ? Player.REPEAT_MODE_OFF : Player.REPEAT_MODE_ALL));
+                }
+            } else if (ACTION_SET_SHUFFLE.equals(action)) {
+                if (player != null) player.setShuffleModeEnabled(intent.getBooleanExtra("enabled", false));
             } else if (ACTION_PAUSE.equals(action)) {
                 if (player != null) player.pause();
             } else if (ACTION_RESUME.equals(action)) {
@@ -294,7 +365,7 @@ public final class ZunoPlaybackService extends MediaSessionService {
         super.onDestroy();
     }
 }
-`;;
+`;
 
 const pluginSource = `package ${appId}.nativeplayback;
 
@@ -308,6 +379,7 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import org.json.JSONArray;
 
 @CapacitorPlugin(name = "ZunoPlayback")
 public final class ZunoPlaybackPlugin extends Plugin {
@@ -320,6 +392,7 @@ public final class ZunoPlaybackPlugin extends Plugin {
         }
         Intent intent = new Intent(getContext(), ZunoPlaybackService.class)
             .setAction(ZunoPlaybackService.ACTION_PLAY)
+            .putExtra("id", call.getString("id", ""))
             .putExtra("url", url)
             .putExtra("title", call.getString("title", "ZUNO Music"))
             .putExtra("artist", call.getString("artist", ""))
@@ -332,6 +405,42 @@ public final class ZunoPlaybackPlugin extends Plugin {
         } catch (Exception error) {
             call.reject("Could not start native playback service: " + error.getMessage());
         }
+    }
+
+    @PluginMethod
+    public void setQueue(PluginCall call) {
+        JSONArray tracks = call.getData().optJSONArray("tracks");
+        if (tracks == null || tracks.length() == 0) {
+            call.reject("A non-empty native playback queue is required.");
+            return;
+        }
+        ZunoPlaybackService service = ZunoPlaybackService.getInstance();
+        if (service == null || service.getPlayer() == null) {
+            call.reject("Native playback is not active.");
+            return;
+        }
+        Intent intent = new Intent(getContext(), ZunoPlaybackService.class)
+            .setAction(ZunoPlaybackService.ACTION_SET_QUEUE)
+            .putExtra("queueJson", tracks.toString())
+            .putExtra("startIndex", call.getData().optInt("startIndex", 0));
+        try {
+            getContext().startService(intent);
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Could not update native queue: " + error.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void setRepeatMode(PluginCall call) {
+        sendStringAction(call, ZunoPlaybackService.ACTION_SET_REPEAT,
+            "repeatMode", call.getString("mode", "all"));
+    }
+
+    @PluginMethod
+    public void setShuffleMode(PluginCall call) {
+        sendBooleanAction(call, ZunoPlaybackService.ACTION_SET_SHUFFLE,
+            "enabled", call.getData().optBoolean("enabled", false));
     }
 
     @PluginMethod
@@ -356,6 +465,30 @@ public final class ZunoPlaybackPlugin extends Plugin {
             return;
         }
         Intent intent = new Intent(getContext(), ZunoPlaybackService.class).setAction(action);
+        try {
+            getContext().startService(intent);
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Native playback command failed: " + error.getMessage());
+        }
+    }
+
+    private void sendStringAction(PluginCall call, String action, String key, String value) {
+        sendActionWithExtra(call, new Intent(getContext(), ZunoPlaybackService.class)
+            .setAction(action).putExtra(key, value));
+    }
+
+    private void sendBooleanAction(PluginCall call, String action, String key, boolean value) {
+        sendActionWithExtra(call, new Intent(getContext(), ZunoPlaybackService.class)
+            .setAction(action).putExtra(key, value));
+    }
+
+    private void sendActionWithExtra(PluginCall call, Intent intent) {
+        ZunoPlaybackService service = ZunoPlaybackService.getInstance();
+        if (service == null || service.getPlayer() == null) {
+            call.resolve();
+            return;
+        }
         try {
             getContext().startService(intent);
             call.resolve();
@@ -414,6 +547,11 @@ public final class ZunoPlaybackPlugin extends Plugin {
         state.put("positionMs", player == null ? 0L : player.getCurrentPosition());
         long duration = player == null ? 0L : player.getDuration();
         state.put("durationMs", duration < 0L ? 0L : duration);
+        if (player != null && player.getCurrentMediaItem() != null) {
+            state.put("currentMediaId", player.getCurrentMediaItem().mediaId);
+        } else {
+            state.put("currentMediaId", "");
+        }
         if (player != null && player.getPlayerError() != null) {
             state.put("errorMessage", player.getPlayerError().getMessage());
         }
