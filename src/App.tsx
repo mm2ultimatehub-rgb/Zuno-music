@@ -317,7 +317,10 @@ export default function App() {
   useEffect(() => {
     zunoAudioEngine.setVolume(settings.volume);
     zunoAudioEngine.setBassBoost(settings.bassBoost);
-  }, [settings.volume, settings.bassBoost]);
+    if (nativePlaybackActive) {
+      void zunoNativePlayback.setVolume({ volume: settings.volume }).catch(() => undefined);
+    }
+  }, [nativePlaybackActive, settings.volume, settings.bassBoost]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -962,8 +965,12 @@ export default function App() {
 
   // Read playback time from the real media element instead of a simulated timer.
   useEffect(() => {
-    zunoAudioEngine.setPlaybackRate(playbackRate);
-  }, [playbackRate]);
+    if (nativePlaybackActive) {
+      void zunoNativePlayback.setPlaybackRate({ rate: playbackRate }).catch(() => undefined);
+    } else {
+      zunoAudioEngine.setPlaybackRate(playbackRate);
+    }
+  }, [nativePlaybackActive, playbackRate]);
 
   // Send real track metadata and transport actions to supported system media controls.
   useEffect(() => {
@@ -1029,7 +1036,7 @@ export default function App() {
         // Unsupported action handlers are ignored.
       }
     };
-  }, [activeTrack, handleSkip, handleTogglePlay, isPlaying, nativePlaybackActive, seekPlayback, selectedYoutubeVideo?.videoId]);
+  }, [activeTrack, currentTimeSec, handleSkip, handleTogglePlay, isPlaying, nativePlaybackActive, seekPlayback, selectedYoutubeVideo?.videoId]);
 
 
 
