@@ -102,7 +102,7 @@ function collectMusicItems(root: unknown, acceptedTypes: Set<string>): RawMusicI
 
 function normalizeMusicKey(value: string): string {
   return value.trim().toLocaleLowerCase().normalize('NFKD')
-    .replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 }
 
 function songOrVideoItems(items: RawMusicItem[]): RawMusicItem[] {
@@ -435,7 +435,8 @@ function mapAlbum(value: unknown): Album | null {
 
 function mapArtist(value: unknown): Artist | null {
   const item = value as RawMusicItem;
-  const id = browseIdOf(item);
+  const rawId = browseIdOf(item);
+  const id = rawId.startsWith('MPLA') ? rawId.slice(4) : rawId;
   const name = titleOf(item);
   if (!id.startsWith('UC') || !name) return null;
   return {
