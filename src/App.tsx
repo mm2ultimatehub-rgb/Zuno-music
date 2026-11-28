@@ -771,6 +771,7 @@ export default function App() {
             artist: track.artist,
             album: track.album,
             artworkUrl: track.coverUrl,
+            userAgent: stream.userAgent,
           });
           if (requestId !== youtubePlaybackRequestRef.current) {
             void zunoNativePlayback.stop();
