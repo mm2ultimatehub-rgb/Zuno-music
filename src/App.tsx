@@ -760,7 +760,14 @@ export default function App() {
           downloadable: false,
         };
         setYoutubeMusicTracks((previous) => mergeCatalogItems([playableTrack], previous));
-        const started = zunoAudioEngine.startTrack(playableTrack, 0);
+        const started = zunoAudioEngine.startTrack(playableTrack, 0, (playbackError) => {
+          if (requestId !== youtubePlaybackRequestRef.current) return;
+          setIsPlaying(false);
+          setActiveTrackId('');
+          setCurrentTimeSec(0);
+          setSelectedYoutubeVideo(youtubeVideoFromTrack(track));
+          showToast(`Uygulama içi ses akışı kesildi. Resmî YouTube oynatıcısı açılıyor. ${playbackError.message}`);
+        });
         if (!started) throw new Error('Ses oynatıcı başlatılamadı.');
 
         setActiveTrackId(track.id);
