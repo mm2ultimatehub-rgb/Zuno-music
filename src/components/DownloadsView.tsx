@@ -151,7 +151,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
                     {item.status === 'completed' && (
                       <button
                         type="button"
-                        aria-label={`${track.title} oynat`}
+                        aria-label={`${track.title} ${tr("Oynat")}`}
                         onClick={() => onPlayTrack(track)}
                         className="inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold"
                         style={{ backgroundColor: accentColor, color: '#0b0e16' }}
@@ -185,7 +185,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
                     {item.status === 'error' && (
                       <button
                         type="button"
-                        aria-label={`${track.title} yeniden dene`}
+                        aria-label={`${track.title} ${tr("Yeniden dene")}`}
                         onClick={() => onRetry(item.id)}
                         className="flex h-11 w-11 items-center justify-center rounded-full border border-red-400/30 text-red-400 hover:bg-red-500/10"
                       >
@@ -195,7 +195,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
 
                     <button
                       type="button"
-                      aria-label={`${track.title} indirmeyi iptal et`}
+                      aria-label={`${track.title} ${tr("İndirmeyi iptal et")}`}
                       onClick={() => onCancel(item.id)}
                       className="flex h-11 w-11 items-center justify-center rounded-full opacity-65 hover:bg-white/10 hover:opacity-100"
                     >
