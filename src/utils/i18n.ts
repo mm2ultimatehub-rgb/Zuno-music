@@ -167,6 +167,7 @@ const messages: Record<AppLanguage, Dictionary> = {
     "Sıradan çıkar": "Remove from queue",
     "Özel vurgu rengi": "Custom accent color",
     "YouTube Music üzerinden gerçek şarkıları keşfet veya Kütüphane üzerinden cihazındaki ses dosyalarını ekle.": "Discover real songs on YouTube Music or add audio files from your device through Library.",
+    "YouTube otomatik oynatmayı engelledi. Oynatıcıdaki Oynat düğmesine dokun.": "YouTube autoplay was blocked. Tap the Play button in the player.",
   },
   ru: {
     home: 'Главная', discover: 'Обзор', library: 'Медиатека', downloads: 'Загрузки',
@@ -326,6 +327,7 @@ const messages: Record<AppLanguage, Dictionary> = {
     "Sıradan çıkar": "Убрать из очереди",
     "Özel vurgu rengi": "Свой акцентный цвет",
     "YouTube Music üzerinden gerçek şarkıları keşfet veya Kütüphane üzerinden cihazındaki ses dosyalarını ekle.": "Находите настоящие песни в YouTube Music или добавляйте аудиофайлы с устройства через медиатеку.",
+    "YouTube otomatik oynatmayı engelledi. Oynatıcıdaki Oynat düğmesine dokun.": "Автовоспроизведение YouTube заблокировано. Нажмите кнопку воспроизведения в плеере.",
   },
 };
 
