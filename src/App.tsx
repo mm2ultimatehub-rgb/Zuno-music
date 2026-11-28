@@ -322,6 +322,12 @@ export default function App() {
     }
   }, [nativePlaybackActive, settings.volume, settings.bassBoost]);
 
+  useEffect(() => {
+    if (!nativePlaybackActive) return;
+    void zunoNativePlayback.setRepeatMode({ mode: repeat }).catch(() => undefined);
+    void zunoNativePlayback.setShuffleMode({ enabled: shuffle }).catch(() => undefined);
+  }, [nativePlaybackActive, repeat, shuffle]);
+
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
   }, []);
@@ -765,19 +771,59 @@ export default function App() {
         setYoutubeMusicTracks((previous) => mergeCatalogItems([playableTrack], previous));
 
         if (isAndroidNativePlayback()) {
-          await zunoNativePlayback.play({
+          const currentNativeTrack = {
+            id: track.id,
             url: stream.url,
             title: track.title,
             artist: track.artist,
             album: track.album,
             artworkUrl: track.coverUrl,
             userAgent: stream.userAgent,
-          });
+          };
+          await zunoNativePlayback.play(currentNativeTrack);
           if (requestId !== youtubePlaybackRequestRef.current) {
             void zunoNativePlayback.stop();
             return;
           }
           setNativePlaybackActive(true);
+
+          // Resolve a short look-ahead queue while the first track is already
+          // playing. Media3 owns these items so next/previous also work from
+          // the Android lock-screen notification with the app in background.
+          void Promise.allSettled(
+            orderedQueue.slice(1, 9).map(async (queuedTrack) => {
+              const queuedStream = await resolveYouTubeMusicAudio(queuedTrack.providerTrackId || '');
+              return {
+                nativeTrack: {
+                  id: queuedTrack.id,
+                  url: queuedStream.url,
+                  title: queuedTrack.title,
+                  artist: queuedTrack.artist,
+                  album: queuedTrack.album,
+                  artworkUrl: queuedTrack.coverUrl,
+                  userAgent: queuedStream.userAgent,
+                },
+                appTrack: {
+                  ...queuedTrack,
+                  audioUrl: queuedStream.url,
+                  downloadable: false,
+                } satisfies Track,
+              };
+            })
+          ).then(async (results) => {
+            if (requestId !== youtubePlaybackRequestRef.current) return;
+            const resolvedQueue = results.flatMap((result) =>
+              result.status === 'fulfilled' ? [result.value] : []
+            );
+            if (!resolvedQueue.length) return;
+            await zunoNativePlayback.setQueue({
+              tracks: [currentNativeTrack, ...resolvedQueue.map((item) => item.nativeTrack)],
+              startIndex: 0,
+            });
+            setYoutubeMusicTracks((previous) =>
+              mergeCatalogItems(resolvedQueue.map((item) => item.appTrack), previous)
+            );
+          }).catch(() => undefined);
         } else {
           setNativePlaybackActive(false);
           const started = zunoAudioEngine.startTrack(playableTrack, 0, (playbackError) => {
@@ -1052,6 +1098,13 @@ export default function App() {
       if (nativePlaybackActive) {
         void zunoNativePlayback.getState().then((state) => {
           setCurrentTimeSec(Math.floor(state.positionMs / 1000));
+          if (state.currentMediaId && state.currentMediaId !== activeTrackId) {
+            setActiveTrackId(state.currentMediaId);
+            setRecentIds((previous) => [
+              state.currentMediaId as string,
+              ...previous.filter((id) => id !== state.currentMediaId),
+            ].slice(0, 12));
+          }
           if (state.playWhenReady) setIsPlaying(true);
           else if (!state.isLoading) setIsPlaying(false);
 
