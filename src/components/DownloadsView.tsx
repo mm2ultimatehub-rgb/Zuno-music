@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../utils/i18n';
 import { ArtworkImage } from './ArtworkImage';
 import { AlertCircle, CheckCircle2, Pause, Play, RotateCcw, Trash2 } from 'lucide-react';
 import type { DownloadItem, DownloadStatus, Track } from '../types/music';
@@ -34,6 +35,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
   accentColor,
   darkMode,
 }) => {
+  const tr = useTranslation();
   const completedCount = downloads.filter((d) => d.status === 'completed').length;
   const activeCount = downloads.filter(
     (d) => d.status === 'downloading' || d.status === 'queued'
@@ -49,7 +51,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
         }`}
       >
         <div>
-          <h1 className="font-display text-xl font-bold">İndirme Yöneticisi</h1>
+          <h1 className="font-display text-xl font-bold">{tr('İndirme Yöneticisi')}</h1>
           <p className="mt-1 text-xs opacity-70 tabular-nums">
             {completedCount} tamamlandı · {activeCount} aktif · {formatFileSize(totalDownloadedMb)}{' '}
             çevrimdışı depolama
@@ -75,7 +77,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
       {/* Download List */}
       {downloads.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-current/15 py-14 px-4 text-center">
-          <p className="text-sm font-medium opacity-75">Henüz indirilen veya bekleyen parça yok.</p>
+          <p className="text-sm font-medium opacity-75">{tr('Henüz indirilen veya bekleyen parça yok.')}</p>
           <p className="mt-1 text-xs opacity-55">
             Keşfet ekranından veya oynatıcıdan parçaları çevrimdışı dinlemek için indirebilirsin.
           </p>
@@ -155,7 +157,7 @@ export const DownloadsView: React.FC<DownloadsViewProps> = ({
                         style={{ backgroundColor: accentColor, color: '#0b0e16' }}
                       >
                         <Play className="h-3.5 w-3.5 fill-current" />
-                        <span>Oynat</span>
+                        <span>{tr('Oynat')}</span>
                       </button>
                     )}
 
