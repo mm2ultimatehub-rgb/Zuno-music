@@ -215,7 +215,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
-                  aria-label={isFav ? `${track.title} favorilerden çıkar` : `${track.title} favorilere ekle`}
+                  aria-label={isFav ? `${track.title} ${tr('Favorilerden çıkar')}` : `${track.title} ${tr('Favorilere ekle')}`}
                   onClick={() => onToggleFavorite(track.id)}
                   className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10"
                 >
@@ -228,7 +228,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 {track.isLocal && (
                   <button
                     type="button"
-                    aria-label={`${track.title} cihazdan sil`}
+                    aria-label={`${track.title} ${tr("Cihazdan sil")}`}
                     onClick={() => onDeleteLocalTrack(track.id)}
                     className="flex h-11 w-11 items-center justify-center rounded-full text-red-400 opacity-75 hover:bg-red-500/10 hover:opacity-100"
                   >
@@ -238,7 +238,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 {playlistOwnerId && (
                   <button
                     type="button"
-                    aria-label={`${track.title} listeden kaldır`}
+                    aria-label={`${track.title} ${tr("Listeden kaldır")}`}
                     onClick={() => onRemoveTrackFromPlaylist(playlistOwnerId, track.id)}
                     className="flex h-11 w-11 items-center justify-center rounded-full opacity-60 hover:bg-white/10 hover:opacity-100"
                   >
